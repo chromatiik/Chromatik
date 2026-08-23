@@ -5774,7 +5774,7 @@ function library:EspPreview(options)
         dock_to_main()
         updateCamera() -- spins character + fixed cam
         accum = accum + (dt or 0.016)
-        if accum < 0.1 then return end
+        if accum < 0.2 then return end
         accum = 0
         if not state.clone or not state.clone.Parent then
             rebuildClone(true)
