@@ -787,7 +787,7 @@ function library:window(properties)
             AnchorPoint = vec2(0.5, 0.5),
             Position = dim2(0.5, 0, 0.5, 0),
             Size = dim2(0, 16, 0, 16),
-            Image = ResolveIcon("search"),
+            Image = (function() local i = ResolveIcon("search"); if not i or i == "rbxassetid://0" then return "rbxassetid://6034287511" end return i end)(),
             ImageColor3 = themes.preset.dimicon,
             ZIndex = 7,
             BorderSizePixel = 0,
