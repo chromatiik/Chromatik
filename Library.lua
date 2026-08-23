@@ -870,19 +870,30 @@ function library:window(properties)
             end
         end
 
+        local searchSnap = {}
         local function applyMenuSearch(query)
             query = tostring(query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+            local main = items["main"]
             if query == "" then
-                for row in pairs(searchRowCache) do
-                    if row and row.Parent then
-                        row.Visible = true
+                for inst, vis in pairs(searchSnap) do
+                    if inst and inst.Parent then
+                        pcall(function() inst.Visible = vis end)
                     end
                 end
+                for row in pairs(searchRowCache) do
+                    if row and row.Parent then row.Visible = true end
+                end
                 return
+            end
+            if next(searchSnap) == nil and main then
+                for _, d in ipairs(main:GetDescendants()) do
+                    if d:IsA("GuiObject") then searchSnap[d] = d.Visible end
+                end
             end
             if next(searchRowCache) == nil then
                 collectSearchRows()
             end
+            local matches = {}
             for row in pairs(searchRowCache) do
                 if row and row.Parent then
                     local match = false
@@ -895,18 +906,40 @@ function library:window(properties)
                             end
                         end
                     end
-                    if not match then
-                        for _, c in ipairs(row:GetChildren()) do
-                            if c:IsA("TextLabel") or c:IsA("TextButton") then
-                                local t = tostring(c.Text or ""):lower()
-                                if t ~= "" and t:find(query, 1, true) then
-                                    match = true
-                                    break
-                                end
+                    if match then
+                        matches[row] = true
+                        local p = row.Parent
+                        while p and p ~= main do
+                            if p:IsA("GuiObject") then matches[p] = true end
+                            p = p.Parent
+                        end
+                    end
+                end
+            end
+            -- also match section/tab titles
+            if main then
+                for _, d in ipairs(main:GetDescendants()) do
+                    if (d:IsA("TextLabel") or d:IsA("TextButton")) then
+                        local t = tostring(d.Text or ""):lower()
+                        if t ~= "" and #t <= 40 and t:find(query, 1, true) then
+                            matches[d] = true
+                            local p = d.Parent
+                            while p and p ~= main do
+                                if p:IsA("GuiObject") then matches[p] = true end
+                                p = p.Parent
                             end
                         end
                     end
-                    row.Visible = match
+                end
+            end
+            for row in pairs(searchRowCache) do
+                if row and row.Parent then
+                    row.Visible = matches[row] == true
+                end
+            end
+            for m in pairs(matches) do
+                if m and m.Parent then
+                    pcall(function() m.Visible = true end)
                 end
             end
         end
@@ -916,8 +949,11 @@ function library:window(properties)
             if searchExpanded then
                 collectSearchRows()
                 items["search_bar"].Visible = true
-                items["search_btn"].Visible = false
-                library:tween(items["search_bar"], { Size = dim2(0, 210, 0, 28) }, Enum.EasingStyle.Quint, 0.22)
+                items["search_btn"].Visible = true -- icon stays
+                -- expand left from icon
+                items["search_bar"].AnchorPoint = vec2(1, 0.5)
+                items["search_bar"].Position = dim2(1, -36, 0.5, 0)
+                library:tween(items["search_bar"], { Size = dim2(0, 200, 0, 28) }, Enum.EasingStyle.Quint, 0.22)
                 task.defer(function()
                     pcall(function() items["search_box"]:CaptureFocus() end)
                 end)
@@ -928,7 +964,6 @@ function library:window(properties)
                 task.delay(0.16, function()
                     if not searchExpanded then
                         items["search_bar"].Visible = false
-                        items["search_btn"].Visible = true
                     end
                 end)
             end
