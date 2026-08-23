@@ -765,6 +765,201 @@ function library:window(properties)
             if ok and content then items["profile_avatar"].Image = content end
         end)
 
+        -- ============================================================
+        -- Header search: icon button expands into a search bar
+        -- ============================================================
+        items["search_btn"] = library:create("TextButton", {
+            Parent = items["multi_holder"],
+            Name = "\0",
+            Text = "",
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -52, 0.5, 0),
+            Size = dim2(0, 32, 0, 32),
+            ZIndex = 6,
+            BorderSizePixel = 0,
+        })
+        items["search_icon"] = library:create("ImageLabel", {
+            Parent = items["search_btn"],
+            Name = "\0",
+            BackgroundTransparency = 1,
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 16, 0, 16),
+            Image = ResolveIcon("search"),
+            ImageColor3 = themes.preset.dimicon,
+            ZIndex = 7,
+            BorderSizePixel = 0,
+        })
+
+        items["search_bar"] = library:create("Frame", {
+            Parent = items["multi_holder"],
+            Name = "\0",
+            BackgroundColor3 = themes.preset.element,
+            BorderSizePixel = 0,
+            AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -52, 0.5, 0),
+            Size = dim2(0, 0, 0, 28),
+            Visible = false,
+            ClipsDescendants = true,
+            ZIndex = 15,
+        })
+        library:create("UICorner", { Parent = items["search_bar"], CornerRadius = dim(0, 6) })
+        library:create("UIStroke", {
+            Parent = items["search_bar"],
+            Color = themes.preset.line,
+            Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
+
+        items["search_box"] = library:create("TextBox", {
+            Parent = items["search_bar"],
+            Name = "\0",
+            BackgroundTransparency = 1,
+            Position = dim2(0, 10, 0, 0),
+            Size = dim2(1, -36, 1, 0),
+            FontFace = fonts.small,
+            TextSize = 12,
+            TextColor3 = themes.preset.text,
+            PlaceholderText = "Search...",
+            PlaceholderColor3 = themes.preset.dimtext,
+            Text = "",
+            ClearTextOnFocus = false,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 16,
+            BorderSizePixel = 0,
+        })
+
+        items["search_close"] = library:create("TextButton", {
+            Parent = items["search_bar"],
+            Name = "\0",
+            Text = "x",
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -2, 0.5, 0),
+            Size = dim2(0, 24, 0, 24),
+            FontFace = fonts.font,
+            TextSize = 14,
+            TextColor3 = themes.preset.dimtext,
+            ZIndex = 17,
+            BorderSizePixel = 0,
+        })
+
+        local searchExpanded = false
+        local searchRowCache = {}
+
+        local function collectSearchRows()
+            searchRowCache = {}
+            local main = items["main"]
+            if not main then return end
+            for _, d in ipairs(main:GetDescendants()) do
+                if d:IsA("TextLabel") and d.TextSize and d.TextSize <= 14 then
+                    local t = tostring(d.Text or "")
+                    if t ~= "" and #t <= 48 then
+                        local row = d.Parent
+                        if row and row:IsA("Frame") then
+                            local h = row.AbsoluteSize.Y
+                            if h >= 18 and h <= 52 then
+                                searchRowCache[row] = true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        local function applyMenuSearch(query)
+            query = tostring(query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+            if query == "" then
+                for row in pairs(searchRowCache) do
+                    if row and row.Parent then
+                        row.Visible = true
+                    end
+                end
+                return
+            end
+            if next(searchRowCache) == nil then
+                collectSearchRows()
+            end
+            for row in pairs(searchRowCache) do
+                if row and row.Parent then
+                    local match = false
+                    for _, c in ipairs(row:GetDescendants()) do
+                        if c:IsA("TextLabel") or c:IsA("TextButton") then
+                            local t = tostring(c.Text or ""):lower()
+                            if t ~= "" and t:find(query, 1, true) then
+                                match = true
+                                break
+                            end
+                        end
+                    end
+                    if not match then
+                        for _, c in ipairs(row:GetChildren()) do
+                            if c:IsA("TextLabel") or c:IsA("TextButton") then
+                                local t = tostring(c.Text or ""):lower()
+                                if t ~= "" and t:find(query, 1, true) then
+                                    match = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    row.Visible = match
+                end
+            end
+        end
+
+        local function setSearchExpanded(on)
+            searchExpanded = on == true
+            if searchExpanded then
+                collectSearchRows()
+                items["search_bar"].Visible = true
+                items["search_btn"].Visible = false
+                library:tween(items["search_bar"], { Size = dim2(0, 210, 0, 28) }, Enum.EasingStyle.Quint, 0.22)
+                task.defer(function()
+                    pcall(function() items["search_box"]:CaptureFocus() end)
+                end)
+            else
+                items["search_box"].Text = ""
+                applyMenuSearch("")
+                library:tween(items["search_bar"], { Size = dim2(0, 0, 0, 28) }, Enum.EasingStyle.Quint, 0.15)
+                task.delay(0.16, function()
+                    if not searchExpanded then
+                        items["search_bar"].Visible = false
+                        items["search_btn"].Visible = true
+                    end
+                end)
+            end
+        end
+
+        items["search_btn"].MouseButton1Click:Connect(function()
+            setSearchExpanded(true)
+        end)
+        items["search_close"].MouseButton1Click:Connect(function()
+            setSearchExpanded(false)
+        end)
+        items["search_box"]:GetPropertyChangedSignal("Text"):Connect(function()
+            applyMenuSearch(items["search_box"].Text)
+        end)
+        items["search_btn"].MouseEnter:Connect(function()
+            library:tween(items["search_icon"], { ImageColor3 = themes.preset.text }, Enum.EasingStyle.Quint, 0.15)
+        end)
+        items["search_btn"].MouseLeave:Connect(function()
+            if not searchExpanded then
+                library:tween(items["search_icon"], { ImageColor3 = themes.preset.dimicon }, Enum.EasingStyle.Quint, 0.15)
+            end
+        end)
+
+        cfg.set_search = setSearchExpanded
+        cfg.apply_search = applyMenuSearch
+        library.MenuSearch = {
+            SetOpen = setSearchExpanded,
+            Apply = applyMenuSearch,
+            IsOpen = function() return searchExpanded end,
+        }
+
         local profileOpen = false
         local profilePopup = library:create("Frame", {
             Parent = items["main"], Name = "\0", Size = dim2(0, 240, 0, 0),
