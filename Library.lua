@@ -893,12 +893,6 @@ function library:window(properties)
         })
 
         local searchExpanded = false
-        -- SEARCH_DISABLED_BY_EMBLEM: hide search chrome
-        pcall(function()
-            if items["search_btn"] then items["search_btn"].Visible = false; items["search_btn"].Active = false end
-            if items["search_bar"] then items["search_bar"].Visible = false end
-            if items["search_empty"] then items["search_empty"].Visible = false end
-        end)
         local searchRowCache = {}
 
         local function collectSearchRows()
@@ -923,8 +917,6 @@ function library:window(properties)
 
         local searchSnap = {}
         local function applyMenuSearch(query)
-            do return end -- SEARCH_DISABLED_BY_EMBLEM
-            local function applyMenuSearch_DISABLED(query)
             query = tostring(query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
             local main = items["main"]
             if query == "" then
