@@ -766,7 +766,7 @@ function library:window(properties)
         end)
 
         -- ============================================================
-        -- Header search: icon button expands into a search bar
+        -- Header search: icon button expands into a pill-shaped search bar
         -- ============================================================
         items["search_btn"] = library:create("TextButton", {
             Parent = items["multi_holder"],
@@ -799,28 +799,42 @@ function library:window(properties)
             BackgroundColor3 = themes.preset.element,
             BorderSizePixel = 0,
             AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -52, 0.5, 0),
-            Size = dim2(0, 0, 0, 28),
+            Position = dim2(1, -14, 0.5, 0),
+            Size = dim2(0, 0, 0, 30),
             Visible = false,
             ClipsDescendants = true,
             ZIndex = 15,
         })
-        library:create("UICorner", { Parent = items["search_bar"], CornerRadius = dim(0, 6) })
-        library:create("UIStroke", {
+        library:create("UICorner", { Parent = items["search_bar"], CornerRadius = dim(1, 0) })
+        local searchStroke = library:create("UIStroke", {
             Parent = items["search_bar"],
             Color = themes.preset.line,
             Thickness = 1,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
 
+        items["search_bar_icon"] = library:create("ImageLabel", {
+            Parent = items["search_bar"],
+            Name = "\0",
+            BackgroundTransparency = 1,
+            AnchorPoint = vec2(0, 0.5),
+            Position = dim2(0, 12, 0.5, 0),
+            Size = dim2(0, 14, 0, 14),
+            Image = items["search_icon"].Image,
+            ImageColor3 = themes.preset.accent,
+            ZIndex = 16,
+            BorderSizePixel = 0,
+        })
+        library:apply_theme(items["search_bar_icon"], "accent", "ImageColor3")
+
         items["search_box"] = library:create("TextBox", {
             Parent = items["search_bar"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 10, 0, 0),
-            Size = dim2(1, -36, 1, 0),
+            Position = dim2(0, 34, 0, 0),
+            Size = dim2(1, -66, 1, 0),
             FontFace = fonts.small,
-            TextSize = 12,
+            TextSize = 13,
             TextColor3 = themes.preset.text,
             PlaceholderText = "Search...",
             PlaceholderColor3 = themes.preset.dimtext,
@@ -834,17 +848,48 @@ function library:window(properties)
         items["search_close"] = library:create("TextButton", {
             Parent = items["search_bar"],
             Name = "\0",
-            Text = "x",
+            Text = "",
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -2, 0.5, 0),
-            Size = dim2(0, 24, 0, 24),
-            FontFace = fonts.font,
-            TextSize = 14,
-            TextColor3 = themes.preset.dimtext,
+            Position = dim2(1, -10, 0.5, 0),
+            Size = dim2(0, 22, 0, 22),
             ZIndex = 17,
             BorderSizePixel = 0,
+        })
+        local searchCloseIcon = library:create("ImageLabel", {
+            Parent = items["search_close"],
+            Name = "\0",
+            BackgroundTransparency = 1,
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 12, 0, 12),
+            ImageColor3 = themes.preset.dimtext,
+            ZIndex = 18,
+            BorderSizePixel = 0,
+        })
+        ApplyIcon(searchCloseIcon, "x")
+        items["search_close"].MouseEnter:Connect(function()
+            library:tween(searchCloseIcon, { ImageColor3 = themes.preset.text }, Enum.EasingStyle.Quint, 0.15)
+        end)
+        items["search_close"].MouseLeave:Connect(function()
+            library:tween(searchCloseIcon, { ImageColor3 = themes.preset.dimtext }, Enum.EasingStyle.Quint, 0.15)
+        end)
+
+        items["search_empty"] = library:create("TextLabel", {
+            Parent = items["tab_holder"] or items["multi_holder"],
+            Name = "\0",
+            FontFace = fonts.font,
+            Text = "No results found",
+            TextSize = 14,
+            TextColor3 = themes.preset.dimtext,
+            BackgroundTransparency = 1,
+            Size = dim2(1, 0, 0, 30),
+            Position = dim2(0, 0, 0, 16),
+            TextXAlignment = Enum.TextXAlignment.Center,
+            Visible = false,
+            BorderSizePixel = 0,
+            ZIndex = 20,
         })
 
         local searchExpanded = false
@@ -883,6 +928,7 @@ function library:window(properties)
                 for row in pairs(searchRowCache) do
                     if row and row.Parent then row.Visible = true end
                 end
+                items["search_empty"].Visible = false
                 return
             end
             if next(searchSnap) == nil and main then
@@ -932,16 +978,21 @@ function library:window(properties)
                     end
                 end
             end
+            local anyVisible = false
             for row in pairs(searchRowCache) do
                 if row and row.Parent then
-                    row.Visible = matches[row] == true
+                    local vis = matches[row] == true
+                    row.Visible = vis
+                    if vis then anyVisible = true end
                 end
             end
             for m in pairs(matches) do
                 if m and m.Parent then
                     pcall(function() m.Visible = true end)
+                    anyVisible = true
                 end
             end
+            items["search_empty"].Visible = not anyVisible
         end
 
         local function setSearchExpanded(on)
@@ -949,25 +1000,32 @@ function library:window(properties)
             if searchExpanded then
                 collectSearchRows()
                 items["search_bar"].Visible = true
-                items["search_btn"].Visible = true -- icon stays
-                -- expand left from icon
-                items["search_bar"].AnchorPoint = vec2(1, 0.5)
-                items["search_bar"].Position = dim2(1, -36, 0.5, 0)
-                library:tween(items["search_bar"], { Size = dim2(0, 200, 0, 28) }, Enum.EasingStyle.Quint, 0.22)
+                items["search_btn"].Visible = false
+                library:tween(items["search_icon"], { ImageColor3 = themes.preset.accent }, Enum.EasingStyle.Quint, 0.15)
+                library:tween(items["search_bar"], { Size = dim2(0, 230, 0, 30) }, Enum.EasingStyle.Quint, 0.22)
                 task.defer(function()
                     pcall(function() items["search_box"]:CaptureFocus() end)
                 end)
             else
                 items["search_box"].Text = ""
                 applyMenuSearch("")
-                library:tween(items["search_bar"], { Size = dim2(0, 0, 0, 28) }, Enum.EasingStyle.Quint, 0.15)
+                library:tween(items["search_icon"], { ImageColor3 = themes.preset.dimicon }, Enum.EasingStyle.Quint, 0.15)
+                library:tween(items["search_bar"], { Size = dim2(0, 0, 0, 30) }, Enum.EasingStyle.Quint, 0.15)
                 task.delay(0.16, function()
                     if not searchExpanded then
                         items["search_bar"].Visible = false
+                        items["search_btn"].Visible = true
                     end
                 end)
             end
         end
+
+        items["search_box"].Focused:Connect(function()
+            library:tween(searchStroke, { Color = themes.preset.accent, Thickness = 1.5 }, Enum.EasingStyle.Quint, 0.15)
+        end)
+        items["search_box"].FocusLost:Connect(function()
+            library:tween(searchStroke, { Color = themes.preset.line, Thickness = 1 }, Enum.EasingStyle.Quint, 0.15)
+        end)
 
         items["search_btn"].MouseButton1Click:Connect(function()
             setSearchExpanded(true)
