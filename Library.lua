@@ -190,55 +190,78 @@ do
         return getcustomasset(jsonPath)
     end
 
-    -- Set a real, working font immediately and synchronously — nothing
-    -- ever waits on the network for this. The custom Inter weights below
-    -- are fetched in the background and swapped in for anything created
-    -- after they finish; elements built before then simply keep this
-    -- fallback, which is a fully legible font, not a placeholder.
+    -- Runs fn() in its own coroutine and waits up to timeoutSec for it to
+    -- finish, polling rather than blocking indefinitely. Used so the
+    -- custom font/icon fetches below can complete BEFORE the menu is
+    -- built (so elements actually get the real asset instead of a
+    -- fallback that's never revisited), while still bounding the worst
+    -- case if the network is slow, instead of the previous fully-async
+    -- approach where every element created before the fetch finished
+    -- silently kept the fallback forever, even after the fetch succeeded.
+    local function withTimeout(fn, timeoutSec)
+        local done, result = false, nil
+        task.spawn(function()
+            local ok, r = pcall(fn)
+            if ok then result = r end
+            done = true
+        end)
+        local start = tick()
+        while not done and (tick() - start) < timeoutSec do
+            task.wait(0.03)
+        end
+        return result
+    end
+
+    -- Set a real, working font immediately and synchronously as the
+    -- starting point — if the fetches below time out, this is what stays.
     local fallbackFamily = Font.fromEnum(Enum.Font.GothamMedium).Family
     fonts = {
         small = Font.new(fallbackFamily, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
         font = Font.new(fallbackFamily, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
     }
 
-    task.spawn(function()
-        local MediumOk, Medium = pcall(function()
-            return Register_Font("Medium", 200, "Normal", {
-                Id = "Medium.ttf",
-                Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"),
-            })
-        end)
-        if MediumOk and Medium then
-            fonts.small = Font.new(Medium, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-        end
-    end)
+    local Medium = withTimeout(function()
+        return Register_Font("Medium", 200, "Normal", {
+            Id = "Medium.ttf",
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"),
+        })
+    end, 4)
+    if Medium then
+        fonts.small = Font.new(Medium, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    end
 
-    task.spawn(function()
-        local SemiOk, SemiBold = pcall(function()
-            return Register_Font("SemiBold", 200, "Normal", {
-                Id = "SemiBold.ttf",
-                Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"),
-            })
-        end)
-        if SemiOk and SemiBold then
-            fonts.font = Font.new(SemiBold, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-        end
-    end)
+    local SemiBold = withTimeout(function()
+        return Register_Font("SemiBold", 200, "Normal", {
+            Id = "SemiBold.ttf",
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"),
+        })
+    end, 4)
+    if SemiBold then
+        fonts.font = Font.new(SemiBold, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    end
 end
 
--- Same reasoning as the fonts above: ResolveIcon()/ApplyIcon() already
--- handle IconPack being nil correctly (icons just render blank until it's
--- ready), so there's no reason this fetch needs to block script startup —
--- it was previously the third sequential blocking GitHub request before
--- anything else in the script could run.
+-- Same timeout-bounded approach as the fonts above, and for the same
+-- reason: ResolveIcon()/ApplyIcon() are only ever evaluated once, at the
+-- moment each UI element is created, so IconPack has to already be
+-- populated by the time the menu is built, or every icon in the menu is
+-- permanently blank.
 local IconPack
-task.spawn(function()
-    pcall(function()
-        local Url = "https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"
-        IconPack = loadstring(game:HttpGetAsync(Url))()
-        IconPack.SetIconsType("lucide")
+do
+    local done = false
+    task.spawn(function()
+        pcall(function()
+            local Url = "https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"
+            IconPack = loadstring(game:HttpGetAsync(Url))()
+            IconPack.SetIconsType("lucide")
+        end)
+        done = true
     end)
-end)
+    local start = tick()
+    while not done and (tick() - start) < 4 do
+        task.wait(0.03)
+    end
+end
 
 local function ResolveIcon(Icon)
     if type(Icon) == "number" then
