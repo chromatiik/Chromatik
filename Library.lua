@@ -190,31 +190,54 @@ do
         return getcustomasset(jsonPath)
     end
 
-    local MediumOk, Medium = pcall(function()
-        return Register_Font("Medium", 200, "Normal", {
-            Id = "Medium.ttf",
-            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"),
-        })
-    end)
-
-    local SemiOk, SemiBold = pcall(function()
-        return Register_Font("SemiBold", 200, "Normal", {
-            Id = "SemiBold.ttf",
-            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"),
-        })
-    end)
-
+    -- Set a real, working font immediately and synchronously — nothing
+    -- ever waits on the network for this. The custom Inter weights below
+    -- are fetched in the background and swapped in for anything created
+    -- after they finish; elements built before then simply keep this
+    -- fallback, which is a fully legible font, not a placeholder.
+    local fallbackFamily = Font.fromEnum(Enum.Font.GothamMedium).Family
     fonts = {
-        small = Font.new(MediumOk and Medium or Font.fromEnum(Enum.Font.GothamMedium).Family, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-        font = Font.new(SemiOk and SemiBold or Font.fromEnum(Enum.Font.GothamMedium).Family, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+        small = Font.new(fallbackFamily, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+        font = Font.new(fallbackFamily, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
     }
+
+    task.spawn(function()
+        local MediumOk, Medium = pcall(function()
+            return Register_Font("Medium", 200, "Normal", {
+                Id = "Medium.ttf",
+                Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"),
+            })
+        end)
+        if MediumOk and Medium then
+            fonts.small = Font.new(Medium, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+        end
+    end)
+
+    task.spawn(function()
+        local SemiOk, SemiBold = pcall(function()
+            return Register_Font("SemiBold", 200, "Normal", {
+                Id = "SemiBold.ttf",
+                Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"),
+            })
+        end)
+        if SemiOk and SemiBold then
+            fonts.font = Font.new(SemiBold, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+        end
+    end)
 end
 
+-- Same reasoning as the fonts above: ResolveIcon()/ApplyIcon() already
+-- handle IconPack being nil correctly (icons just render blank until it's
+-- ready), so there's no reason this fetch needs to block script startup —
+-- it was previously the third sequential blocking GitHub request before
+-- anything else in the script could run.
 local IconPack
-pcall(function()
-    local Url = "https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"
-    IconPack = loadstring(game:HttpGetAsync(Url))()
-    IconPack.SetIconsType("lucide")
+task.spawn(function()
+    pcall(function()
+        local Url = "https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"
+        IconPack = loadstring(game:HttpGetAsync(Url))()
+        IconPack.SetIconsType("lucide")
+    end)
 end)
 
 local function ResolveIcon(Icon)
@@ -1378,7 +1401,7 @@ function library:window(properties)
                 end)
                 pcall(function()
                     shared = shared or {}
-                    shared._juruMenuOpen = open
+                    shared._emblemMenuOpen = open
                 end)
             end)
             -- also allow dragging the open button
@@ -1423,7 +1446,7 @@ function library:window(properties)
         library["items"].Enabled = bool
         pcall(function()
             shared = shared or {}
-            shared._juruMenuOpen = bool == true
+            shared._emblemMenuOpen = bool == true
         end)
     end
 
@@ -5224,8 +5247,8 @@ function library:EspPreview(options)
         if not pinned then return end
         local main = nil
         pcall(function()
-            if shared and shared._juruMenuMain and shared._juruMenuMain.Parent then
-                main = shared._juruMenuMain
+            if shared and shared._emblemMenuMain and shared._emblemMenuMain.Parent then
+                main = shared._emblemMenuMain
             end
         end)
         if not main then
@@ -5263,7 +5286,7 @@ function library:EspPreview(options)
         pcall(function()
             local menuOn = true
             if library.items and library.items.Enabled == false then menuOn = false end
-            if shared and shared._juruMenuOpen == false then menuOn = false end
+            if shared and shared._emblemMenuOpen == false then menuOn = false end
             if main and main.Visible == false then menuOn = false end
             panel.Visible = state.open and menuOn
         end)
@@ -5635,8 +5658,8 @@ function library:EspPreview(options)
             for _, part in ipairs(clone:GetDescendants()) do
                 if part:IsA("BasePart")
                     and part.Name ~= "HumanoidRootPart"
-                    and part.Name ~= "JuruSkelBone"
-                    and part.Name ~= "JuruChamsShell"
+                    and part.Name ~= "EmblemSkelBone"
+                    and part.Name ~= "EmblemChamsShell"
                 then
                     pcall(function()
                         part.Color = Color3.fromRGB(163, 162, 165)
@@ -5656,10 +5679,10 @@ function library:EspPreview(options)
             if vis.Chams == true then
                 -- shell transparency: high fill => more solid overlay
                 local shellT = clamp(1 - fill, 0.15, 0.72)
-                local folder = clone:FindFirstChild("JuruChamsShells")
+                local folder = clone:FindFirstChild("EmblemChamsShells")
                 if folder then pcall(function() folder:Destroy() end) end
                 folder = Instance.new("Folder")
-                folder.Name = "JuruChamsShells"
+                folder.Name = "EmblemChamsShells"
                 folder.Parent = clone
                 state.chamShellFolder = folder
 
@@ -5668,10 +5691,10 @@ function library:EspPreview(options)
                         and part.Name ~= "HumanoidRootPart"
                         and part.Transparency < 0.9
                         and part.Size.Magnitude > 0.08
-                        and not string.find(part.Name, "Juru", 1, true)
+                        and not string.find(part.Name, "Emblem", 1, true)
                     then
                         local shell = Instance.new("Part")
-                        shell.Name = "JuruChamsShell"
+                        shell.Name = "EmblemChamsShell"
                         shell.Anchored = true
                         shell.CanCollide = false
                         shell.CanQuery = false
@@ -5688,7 +5711,7 @@ function library:EspPreview(options)
                     end
                 end
             else
-                local folder = clone:FindFirstChild("JuruChamsShells")
+                local folder = clone:FindFirstChild("EmblemChamsShells")
                 if folder then pcall(function() folder:Destroy() end) end
             end
 
@@ -5745,7 +5768,7 @@ function library:EspPreview(options)
         end
         pcall(function()
             if state.clone then
-                local f = state.clone:FindFirstChild("JuruPreviewSkeleton")
+                local f = state.clone:FindFirstChild("EmblemPreviewSkeleton")
                 if f then f:Destroy() end
             end
         end)
@@ -6030,18 +6053,13 @@ function library:EspPreview(options)
         setOpen(false)
         pcall(function()
             flags[enabledFlag] = false
-            flags["juru_esp_preview"] = false
+            flags["emblem_esp_preview"] = false
             if type(options.Callback) == "function" then options.Callback(false) end
             if type(options.callback) == "function" then options.callback(false) end
             if config_flags and config_flags[enabledFlag] then pcall(config_flags[enabledFlag], false) end
-            if config_flags and config_flags["juru_esp_preview"] then pcall(config_flags["juru_esp_preview"], false) end
-            -- force Juru config + silent UI flag
-            if shared and shared.Juru then
-                shared.Juru.EspPreview = shared.Juru.EspPreview or {}
-                shared.Juru.EspPreview.Enabled = false
-            end
+            if config_flags and config_flags["emblem_esp_preview"] then pcall(config_flags["emblem_esp_preview"], false) end
             -- notify any listeners
-            if shared then shared._juruEspPreviewClosed = tick() end
+            if shared then shared._emblemEspPreviewClosed = tick() end
         end)
     end)
 
@@ -6053,8 +6071,8 @@ function library:EspPreview(options)
         local menuOn = true
         pcall(function()
             if library.items and library.items.Enabled == false then menuOn = false end
-            if shared and shared._juruMenuOpen == false then menuOn = false end
-            if shared and shared._juruMenuMain and shared._juruMenuMain.Visible == false then menuOn = false end
+            if shared and shared._emblemMenuOpen == false then menuOn = false end
+            if shared and shared._emblemMenuMain and shared._emblemMenuMain.Visible == false then menuOn = false end
         end)
         panel.Visible = state.open and menuOn
         if gui then gui.Enabled = state.open and menuOn end
@@ -6099,7 +6117,7 @@ function library:EspPreview(options)
         GetCamera = function() return cam end,
         GetPanel = function() return panel end,
         GetViewport = function() return viewport end,
-        -- Real ESP host: Juru projects normal ESP onto this rect
+        -- Real ESP host: Emblem projects normal ESP onto this rect
         GetRenderContext = function()
             if not state.open or not panel or not panel.Parent then return nil end
             local clone = state.clone
