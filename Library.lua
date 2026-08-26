@@ -190,14 +190,6 @@ do
         return getcustomasset(jsonPath)
     end
 
-    -- Runs fn() in its own coroutine and waits up to timeoutSec for it to
-    -- finish, polling rather than blocking indefinitely. Used so the
-    -- custom font/icon fetches below can complete BEFORE the menu is
-    -- built (so elements actually get the real asset instead of a
-    -- fallback that's never revisited), while still bounding the worst
-    -- case if the network is slow, instead of the previous fully-async
-    -- approach where every element created before the fetch finished
-    -- silently kept the fallback forever, even after the fetch succeeded.
     local function withTimeout(fn, timeoutSec)
         local done, result = false, nil
         task.spawn(function()
@@ -212,8 +204,6 @@ do
         return result
     end
 
-    -- Set a real, working font immediately and synchronously as the
-    -- starting point — if the fetches below time out, this is what stays.
     local fallbackFamily = Font.fromEnum(Enum.Font.GothamMedium).Family
     fonts = {
         small = Font.new(fallbackFamily, Enum.FontWeight.Regular, Enum.FontStyle.Normal),
@@ -223,7 +213,8 @@ do
     local Medium = withTimeout(function()
         return Register_Font("Medium", 200, "Normal", {
             Id = "Medium.ttf",
-            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"),
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"), -- Upload the font to your own github incase of deletion.
+
         })
     end, 4)
     if Medium then
@@ -233,7 +224,8 @@ do
     local SemiBold = withTimeout(function()
         return Register_Font("SemiBold", 200, "Normal", {
             Id = "SemiBold.ttf",
-            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"),
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"), -- Upload the font to your own github incase of deletion.
+
         })
     end, 4)
     if SemiBold then
@@ -241,11 +233,6 @@ do
     end
 end
 
--- Same timeout-bounded approach as the fonts above, and for the same
--- reason: ResolveIcon()/ApplyIcon() are only ever evaluated once, at the
--- moment each UI element is created, so IconPack has to already be
--- populated by the time the menu is built, or every icon in the menu is
--- permanently blank.
 local IconPack
 do
     local done = false
@@ -418,7 +405,6 @@ function library:draggify(frame)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local viewport_x = camera.ViewportSize.X
             local viewport_y = camera.ViewportSize.Y
-            -- AbsoluteSize respects UIScale so the menu does not jump/squash off-screen
             local aw = math.max(frame.AbsoluteSize.X, 50)
             local ah = math.max(frame.AbsoluteSize.Y, 50)
             local nx = start_size.X.Offset + (input.Position.X - start.X)
@@ -471,7 +457,6 @@ function library:resizify(frame)
             or input.UserInputType == Enum.UserInputType.Touch) then
             local viewport_x = camera.ViewportSize.X
             local viewport_y = camera.ViewportSize.Y
-            -- keep roughly same aspect so layout does not squash
             local minW = math.max(og_size.X.Offset * 0.55, 320)
             local minH = math.max(og_size.Y.Offset * 0.55, 280)
             local newW = clamp(start_size.X.Offset + (input.Position.X - start.X), minW, viewport_x - 8)
@@ -811,294 +796,6 @@ function library:window(properties)
             if ok and content then items["profile_avatar"].Image = content end
         end)
 
-        -- ============================================================
-        -- Header search: icon button expands into a pill-shaped search bar
-        -- ============================================================
-        items["search_btn"] = library:create("TextButton", {
-            Parent = items["multi_holder"],
-            Name = "\0",
-            Text = "",
-            AutoButtonColor = false,
-            BackgroundTransparency = 1,
-            AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -52, 0.5, 0),
-            Size = dim2(0, 32, 0, 32),
-            ZIndex = 6,
-            BorderSizePixel = 0,
-        })
-        items["search_icon"] = library:create("ImageLabel", {
-            Parent = items["search_btn"],
-            Name = "\0",
-            BackgroundTransparency = 1,
-            AnchorPoint = vec2(0.5, 0.5),
-            Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 16, 0, 16),
-            Image = (function() local i = ResolveIcon("search"); if not i or i == "rbxassetid://0" then return "rbxassetid://6034287511" end return i end)(),
-            ImageColor3 = themes.preset.dimicon,
-            ZIndex = 7,
-            BorderSizePixel = 0,
-        })
-
-        items["search_bar"] = library:create("Frame", {
-            Parent = items["multi_holder"],
-            Name = "\0",
-            BackgroundColor3 = themes.preset.element,
-            BorderSizePixel = 0,
-            AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -14, 0.5, 0),
-            Size = dim2(0, 0, 0, 30),
-            Visible = false,
-            ClipsDescendants = true,
-            ZIndex = 15,
-        })
-        library:create("UICorner", { Parent = items["search_bar"], CornerRadius = dim(1, 0) })
-        local searchStroke = library:create("UIStroke", {
-            Parent = items["search_bar"],
-            Color = themes.preset.line,
-            Thickness = 1,
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        })
-
-        items["search_bar_icon"] = library:create("ImageLabel", {
-            Parent = items["search_bar"],
-            Name = "\0",
-            BackgroundTransparency = 1,
-            AnchorPoint = vec2(0, 0.5),
-            Position = dim2(0, 12, 0.5, 0),
-            Size = dim2(0, 14, 0, 14),
-            Image = items["search_icon"].Image,
-            ImageColor3 = themes.preset.accent,
-            ZIndex = 16,
-            BorderSizePixel = 0,
-        })
-        library:apply_theme(items["search_bar_icon"], "accent", "ImageColor3")
-
-        items["search_box"] = library:create("TextBox", {
-            Parent = items["search_bar"],
-            Name = "\0",
-            BackgroundTransparency = 1,
-            Position = dim2(0, 34, 0, 0),
-            Size = dim2(1, -66, 1, 0),
-            FontFace = fonts.small,
-            TextSize = 13,
-            TextColor3 = themes.preset.text,
-            PlaceholderText = "Search...",
-            PlaceholderColor3 = themes.preset.dimtext,
-            Text = "",
-            ClearTextOnFocus = false,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 16,
-            BorderSizePixel = 0,
-        })
-
-        items["search_close"] = library:create("TextButton", {
-            Parent = items["search_bar"],
-            Name = "\0",
-            Text = "",
-            AutoButtonColor = false,
-            BackgroundTransparency = 1,
-            AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -10, 0.5, 0),
-            Size = dim2(0, 22, 0, 22),
-            ZIndex = 17,
-            BorderSizePixel = 0,
-        })
-        local searchCloseIcon = library:create("ImageLabel", {
-            Parent = items["search_close"],
-            Name = "\0",
-            BackgroundTransparency = 1,
-            AnchorPoint = vec2(0.5, 0.5),
-            Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 12, 0, 12),
-            ImageColor3 = themes.preset.dimtext,
-            ZIndex = 18,
-            BorderSizePixel = 0,
-        })
-        ApplyIcon(searchCloseIcon, "x")
-        items["search_close"].MouseEnter:Connect(function()
-            library:tween(searchCloseIcon, { ImageColor3 = themes.preset.text }, Enum.EasingStyle.Quint, 0.15)
-        end)
-        items["search_close"].MouseLeave:Connect(function()
-            library:tween(searchCloseIcon, { ImageColor3 = themes.preset.dimtext }, Enum.EasingStyle.Quint, 0.15)
-        end)
-
-        items["search_empty"] = library:create("TextLabel", {
-            Parent = items["tab_holder"] or items["multi_holder"],
-            Name = "\0",
-            FontFace = fonts.font,
-            Text = "No results found",
-            TextSize = 14,
-            TextColor3 = themes.preset.dimtext,
-            BackgroundTransparency = 1,
-            Size = dim2(1, 0, 0, 30),
-            Position = dim2(0, 0, 0, 16),
-            TextXAlignment = Enum.TextXAlignment.Center,
-            Visible = false,
-            BorderSizePixel = 0,
-            ZIndex = 20,
-        })
-
-        local searchExpanded = false
-        local searchRowCache = {}
-
-        local function collectSearchRows()
-            searchRowCache = {}
-            local main = items["main"]
-            if not main then return end
-            for _, d in ipairs(main:GetDescendants()) do
-                if d:IsA("TextLabel") and d.TextSize and d.TextSize <= 14 then
-                    local t = tostring(d.Text or "")
-                    if t ~= "" and #t <= 48 then
-                        local row = d.Parent
-                        if row and row:IsA("Frame") then
-                            local h = row.AbsoluteSize.Y
-                            if h >= 18 and h <= 52 then
-                                searchRowCache[row] = true
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        local searchSnap = {}
-        local function applyMenuSearch(query)
-            query = tostring(query or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
-            local main = items["main"]
-            if query == "" then
-                for inst, vis in pairs(searchSnap) do
-                    if inst and inst.Parent then
-                        pcall(function() inst.Visible = vis end)
-                    end
-                end
-                for row in pairs(searchRowCache) do
-                    if row and row.Parent then row.Visible = true end
-                end
-                items["search_empty"].Visible = false
-                return
-            end
-            if next(searchSnap) == nil and main then
-                for _, d in ipairs(main:GetDescendants()) do
-                    if d:IsA("GuiObject") then searchSnap[d] = d.Visible end
-                end
-            end
-            if next(searchRowCache) == nil then
-                collectSearchRows()
-            end
-            local matches = {}
-            for row in pairs(searchRowCache) do
-                if row and row.Parent then
-                    local match = false
-                    for _, c in ipairs(row:GetDescendants()) do
-                        if c:IsA("TextLabel") or c:IsA("TextButton") then
-                            local t = tostring(c.Text or ""):lower()
-                            if t ~= "" and t:find(query, 1, true) then
-                                match = true
-                                break
-                            end
-                        end
-                    end
-                    if match then
-                        matches[row] = true
-                        local p = row.Parent
-                        while p and p ~= main do
-                            if p:IsA("GuiObject") then matches[p] = true end
-                            p = p.Parent
-                        end
-                    end
-                end
-            end
-            -- also match section/tab titles
-            if main then
-                for _, d in ipairs(main:GetDescendants()) do
-                    if (d:IsA("TextLabel") or d:IsA("TextButton")) then
-                        local t = tostring(d.Text or ""):lower()
-                        if t ~= "" and #t <= 40 and t:find(query, 1, true) then
-                            matches[d] = true
-                            local p = d.Parent
-                            while p and p ~= main do
-                                if p:IsA("GuiObject") then matches[p] = true end
-                                p = p.Parent
-                            end
-                        end
-                    end
-                end
-            end
-            local anyVisible = false
-            for row in pairs(searchRowCache) do
-                if row and row.Parent then
-                    local vis = matches[row] == true
-                    row.Visible = vis
-                    if vis then anyVisible = true end
-                end
-            end
-            for m in pairs(matches) do
-                if m and m.Parent then
-                    pcall(function() m.Visible = true end)
-                    anyVisible = true
-                end
-            end
-            items["search_empty"].Visible = not anyVisible
-        end
-
-        local function setSearchExpanded(on)
-            searchExpanded = on == true
-            if searchExpanded then
-                collectSearchRows()
-                items["search_bar"].Visible = true
-                items["search_btn"].Visible = false
-                library:tween(items["search_icon"], { ImageColor3 = themes.preset.accent }, Enum.EasingStyle.Quint, 0.15)
-                library:tween(items["search_bar"], { Size = dim2(0, 230, 0, 30) }, Enum.EasingStyle.Quint, 0.22)
-                task.defer(function()
-                    pcall(function() items["search_box"]:CaptureFocus() end)
-                end)
-            else
-                items["search_box"].Text = ""
-                applyMenuSearch("")
-                library:tween(items["search_icon"], { ImageColor3 = themes.preset.dimicon }, Enum.EasingStyle.Quint, 0.15)
-                library:tween(items["search_bar"], { Size = dim2(0, 0, 0, 30) }, Enum.EasingStyle.Quint, 0.15)
-                task.delay(0.16, function()
-                    if not searchExpanded then
-                        items["search_bar"].Visible = false
-                        items["search_btn"].Visible = true
-                    end
-                end)
-            end
-        end
-
-        items["search_box"].Focused:Connect(function()
-            library:tween(searchStroke, { Color = themes.preset.accent, Thickness = 1.5 }, Enum.EasingStyle.Quint, 0.15)
-        end)
-        items["search_box"].FocusLost:Connect(function()
-            library:tween(searchStroke, { Color = themes.preset.line, Thickness = 1 }, Enum.EasingStyle.Quint, 0.15)
-        end)
-
-        items["search_btn"].MouseButton1Click:Connect(function()
-            setSearchExpanded(true)
-        end)
-        items["search_close"].MouseButton1Click:Connect(function()
-            setSearchExpanded(false)
-        end)
-        items["search_box"]:GetPropertyChangedSignal("Text"):Connect(function()
-            applyMenuSearch(items["search_box"].Text)
-        end)
-        items["search_btn"].MouseEnter:Connect(function()
-            library:tween(items["search_icon"], { ImageColor3 = themes.preset.text }, Enum.EasingStyle.Quint, 0.15)
-        end)
-        items["search_btn"].MouseLeave:Connect(function()
-            if not searchExpanded then
-                library:tween(items["search_icon"], { ImageColor3 = themes.preset.dimicon }, Enum.EasingStyle.Quint, 0.15)
-            end
-        end)
-
-        cfg.set_search = setSearchExpanded
-        cfg.apply_search = applyMenuSearch
-        library.MenuSearch = {
-            SetOpen = setSearchExpanded,
-            Apply = applyMenuSearch,
-            IsOpen = function() return searchExpanded end,
-        }
-
         local profileOpen = false
         local profilePopup = library:create("Frame", {
             Parent = items["main"], Name = "\0", Size = dim2(0, 240, 0, 0),
@@ -1341,7 +1038,6 @@ function library:window(properties)
     library:draggify(items["main"])
     library:resizify(items["main"])
 
-    -- Mobile / small-screen: uniform UIScale only (no size squash), floating open button
     do
         local touch = false
         pcall(function() touch = uis.TouchEnabled == true end)
@@ -1351,7 +1047,6 @@ function library:window(properties)
             needMobile = true
         end
         if needMobile and vp then
-            -- Uniform scale keeps proportions — never change Width/Height ratios
             local scale = math.min(vp.X / 720, vp.Y / 580)
             scale = math.clamp(scale, 0.6, 1)
             local us = items["main"]:FindFirstChild("ChromatikMobileScale")
@@ -1362,7 +1057,6 @@ function library:window(properties)
             end
             us.Scale = scale
             library._mobile_scale = us
-            -- center once; do not force top-left every frame (that felt like "moving")
             task.defer(function()
                 pcall(function()
                     local aw = items["main"].AbsoluteSize.X
@@ -1374,7 +1068,6 @@ function library:window(properties)
             end)
         end
 
-        -- Floating menu button for touch (no keyboard LeftAlt on phones)
         if touch then
             local btnGui = library:create("ScreenGui", {
                 Parent = coregui,
@@ -1424,10 +1117,9 @@ function library:window(properties)
                 end)
                 pcall(function()
                     shared = shared or {}
-                    shared._emblemMenuOpen = open
+                    shared._hostMenuOpen = open
                 end)
             end)
-            -- also allow dragging the open button
             do
                 local dragging, start, startPos
                 btn.InputBegan:Connect(function(input)
@@ -1455,7 +1147,6 @@ function library:window(properties)
                     local ny = startPos.Y.Offset + (input.Position.Y - start.Y)
                     nx = clamp(nx, 8, vp2.X - 54)
                     ny = clamp(ny, 8, vp2.Y - 54)
-                    -- only move if dragged enough (tap vs drag)
                     if math.abs(input.Position.X - start.X) + math.abs(input.Position.Y - start.Y) > 12 then
                         btn.Position = dim2(0, nx, 0, ny)
                     end
@@ -1469,7 +1160,7 @@ function library:window(properties)
         library["items"].Enabled = bool
         pcall(function()
             shared = shared or {}
-            shared._emblemMenuOpen = bool == true
+            shared._hostMenuOpen = bool == true
         end)
     end
 
@@ -4179,7 +3870,6 @@ function library:UserPanel(window)
 end
 
 
--- Keep floating panels on-screen (keybind list / ESP preview)
 local function clamp_panel_position(x, y, panel_w, panel_h)
     local vp = camera and camera.ViewportSize or Vector2.new(1920, 1080)
     panel_w = tonumber(panel_w) or 280
@@ -4189,7 +3879,6 @@ local function clamp_panel_position(x, y, panel_w, panel_h)
     local max_y = math.max(margin, vp.Y - panel_h - margin)
     x = tonumber(x) or margin
     y = tonumber(y) or margin
-    -- treat clearly broken / off-screen saves as defaults
     if x < -panel_w + 40 or x > vp.X - 40 or y < -40 or y > vp.Y - 40 then
         x, y = margin, math.floor(vp.Y * 0.35)
     end
@@ -4217,7 +3906,6 @@ function library:KeybindList(params)
             end
         end
     end)
-    -- also clamp default/param positions that use only scale (can land off-screen after res change)
     do
         local ox = position.X.Offset + (camera.ViewportSize.X * position.X.Scale)
         local oy = position.Y.Offset + (camera.ViewportSize.Y * position.Y.Scale)
@@ -5156,16 +4844,6 @@ function library:Notification(Params)
 end
 
 
--- ============================================================
--- ESP Preview: floating panel (like Keybind list)
--- ============================================================
--- ESP Preview: floating panel (like Keybind list)
--- ============================================================
--- ESP Preview: floating panel (like Keybind list)
--- ============================================================
--- ESP Preview: floating panel (like Keybind list)
--- Uses 3D adornments/beams inside ViewportFrame (Highlight/2D overlays are unreliable there)
--- ============================================================
 function library:EspPreview(options)
     options = options or {}
     if library.EspPreviewInstance and library.EspPreviewInstance.Gui and library.EspPreviewInstance.Gui.Parent then
@@ -5263,15 +4941,15 @@ function library:EspPreview(options)
         TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 72,
     })
 
-    local pinned = true -- locked to main menu by default
+    local pinned = true
     local DOCK_GAP = 12
     local function dock_to_main()
         if not panel or not panel.Parent then return end
         if not pinned then return end
         local main = nil
         pcall(function()
-            if shared and shared._emblemMenuMain and shared._emblemMenuMain.Parent then
-                main = shared._emblemMenuMain
+            if shared and shared._hostMenuMain and shared._hostMenuMain.Parent then
+                main = shared._hostMenuMain
             end
         end)
         if not main then
@@ -5294,7 +4972,7 @@ function library:EspPreview(options)
         local menuH = asz.Y > 80 and asz.Y or 575
         local menuW = asz.X > 80 and asz.X or 720
         local x = ap.X + menuW + DOCK_GAP
-        local y = ap.Y + menuH * 0.5 - ph * 0.5 -- dead vertical center of menu
+        local y = ap.Y + menuH * 0.5 - ph * 0.5
         local vs = camera.ViewportSize
         if x + pw > vs.X - 6 then
             x = max(6, ap.X - pw - DOCK_GAP)
@@ -5305,17 +4983,15 @@ function library:EspPreview(options)
         end
         panel.Position = dim2(0, floor(x + 0.5), 0, floor(y + 0.5))
 
-        -- follow main menu visibility
         pcall(function()
             local menuOn = true
             if library.items and library.items.Enabled == false then menuOn = false end
-            if shared and shared._emblemMenuOpen == false then menuOn = false end
+            if shared and shared._hostMenuOpen == false then menuOn = false end
             if main and main.Visible == false then menuOn = false end
             panel.Visible = state.open and menuOn
         end)
     end
 
-    -- pin removed (permanently docked)
     local pinBtn = { ImageColor3 = themes.preset.accent }
 
     local closeBtn = library:create("ImageButton", {
@@ -5347,7 +5023,6 @@ function library:EspPreview(options)
     cam.Parent = viewport
     viewport.CurrentCamera = cam
 
-    -- transparent input catcher for orbit (no 2D ESP here — ESP is 3D inside VF)
     local inputLayer = library:create("TextButton", {
         Parent = body, Text = "", AutoButtonColor = false, BackgroundTransparency = 1,
         Size = dim2(1, 0, 1, 0), BorderSizePixel = 0, ZIndex = 80, Active = true,
@@ -5363,13 +5038,12 @@ function library:EspPreview(options)
 
     local state = {
         open = visible == true,
-        rotation = 0, -- Atlanta-style auto spin
+        rotation = 0,
         clone = nil,
         focus = Vector3.new(0, 1.5, 0),
         lastCloneAt = 0,
         destroyed = false,
         idleTrack = nil,
-        -- ESP object lists
         chamAdorns = {},
         skeletonBeams = {},
         nameBillboard = nil,
@@ -5536,8 +5210,6 @@ function library:EspPreview(options)
         return clamp(fill, 0, 1)
     end
 
-    -- Highlight parented outside the ViewportFrame (Adornee = clone) — matches world chams
-    -- Atlanta-style ESP preview: fixed Frame overlays on ViewportFrame (same as real ScreenESP)
     local previewObjects = {}
     local function ensurePreviewFrames()
         if previewObjects.holder and previewObjects.holder.Parent then return previewObjects end
@@ -5635,25 +5307,21 @@ function library:EspPreview(options)
         local any = vis.Names or vis.Boxes or vis.BoxFilled or vis.HealthBar or vis.Distance or vis.Weapon
         o.holder.Visible = any == true
 
-        -- Name
         o.name.Visible = vis.Names == true
         o.name.TextColor3 = col
         o.name.Text = "Player"
 
-        -- Box normal vs hide
         local showBox = vis.Boxes == true or vis.BoxFilled == true
         o.box_handler.Visible = showBox
         o.box_stroke.Color = col
         o.box_stroke.Enabled = vis.Boxes == true
         o.box_fill.Visible = vis.BoxFilled == true
         o.box_fill.BackgroundColor3 = col
-        o.corners.Visible = false -- normal box by default; corners optional later
+        o.corners.Visible = false
 
-        -- Health
         o.hp_holder.Visible = vis.HealthBar == true
         o.hp_fill.BackgroundColor3 = vis.HealthColor or rgb(80, 255, 120)
 
-        -- Distance / weapon under box
         o.dist.Visible = vis.Distance == true
         o.dist.TextColor3 = col
         o.dist.Text = "0st"
@@ -5663,10 +5331,6 @@ function library:EspPreview(options)
         o.weapon.Position = dim2(0, 0, 1, (vis.Distance == true) and 16 or 4)
 
 
-        -- ============================================================
-        -- Preview chams = outer translucent shells (looks like Highlight fill)
-        -- Preview skeleton = 2D lines drawn ON TOP of the ViewportFrame
-        -- ============================================================
         if clone then
             local fillCol = vis.ChamsColor or col
             if typeof(fillCol) ~= "Color3" then fillCol = col end
@@ -5677,12 +5341,11 @@ function library:EspPreview(options)
             if fill > 1 then fill = fill / 100 end
             fill = clamp(fill, 0, 1)
 
-            -- base body stays normal grey (not painted purple)
             for _, part in ipairs(clone:GetDescendants()) do
                 if part:IsA("BasePart")
                     and part.Name ~= "HumanoidRootPart"
-                    and part.Name ~= "EmblemSkelBone"
-                    and part.Name ~= "EmblemChamsShell"
+                    and part.Name ~= "SkelBone"
+                    and part.Name ~= "ChamsShellPart"
                 then
                     pcall(function()
                         part.Color = Color3.fromRGB(163, 162, 165)
@@ -5692,7 +5355,6 @@ function library:EspPreview(options)
                 end
             end
 
-            -- destroy old shells
             for _, s in ipairs(state.chamShells or {}) do
                 pcall(function() s:Destroy() end)
             end
@@ -5700,12 +5362,11 @@ function library:EspPreview(options)
             state.chamShellTargets = {}
 
             if vis.Chams == true then
-                -- shell transparency: high fill => more solid overlay
                 local shellT = clamp(1 - fill, 0.15, 0.72)
-                local folder = clone:FindFirstChild("EmblemChamsShells")
+                local folder = clone:FindFirstChild("ChamsShellsFolder")
                 if folder then pcall(function() folder:Destroy() end) end
                 folder = Instance.new("Folder")
-                folder.Name = "EmblemChamsShells"
+                folder.Name = "ChamsShellsFolder"
                 folder.Parent = clone
                 state.chamShellFolder = folder
 
@@ -5714,10 +5375,10 @@ function library:EspPreview(options)
                         and part.Name ~= "HumanoidRootPart"
                         and part.Transparency < 0.9
                         and part.Size.Magnitude > 0.08
-                        and not string.find(part.Name, "Emblem", 1, true)
+                        and not string.find(part.Name, "ChamsShellPart", 1, true)
                     then
                         local shell = Instance.new("Part")
-                        shell.Name = "EmblemChamsShell"
+                        shell.Name = "ChamsShellPart"
                         shell.Anchored = true
                         shell.CanCollide = false
                         shell.CanQuery = false
@@ -5734,11 +5395,10 @@ function library:EspPreview(options)
                     end
                 end
             else
-                local folder = clone:FindFirstChild("EmblemChamsShells")
+                local folder = clone:FindFirstChild("ChamsShellsFolder")
                 if folder then pcall(function() folder:Destroy() end) end
             end
 
-            -- kill leftover Highlight (causes white wash in VF)
             if state.previewHighlight then
                 pcall(function() state.previewHighlight:Destroy() end)
                 state.previewHighlight = nil
@@ -5748,7 +5408,6 @@ function library:EspPreview(options)
                 if orphan then orphan:Destroy() end
             end)
 
-            -- no 3D skeleton bones (they get buried inside limbs)
             hideSkeletonBones()
 
             state._skelEnabled = vis.Skeleton == true
@@ -5776,7 +5435,6 @@ function library:EspPreview(options)
         {"Torso", "Left Leg"}, {"Torso", "Right Leg"},
     }
 
-    -- kept for cleanup compat
     ensureSkeletonBones = function() end
     hideSkeletonBones = function()
         if state.skelBones then
@@ -5791,13 +5449,12 @@ function library:EspPreview(options)
         end
         pcall(function()
             if state.clone then
-                local f = state.clone:FindFirstChild("EmblemPreviewSkeleton")
+                local f = state.clone:FindFirstChild("PreviewSkeleton")
                 if f then f:Destroy() end
             end
         end)
     end
     updateSkeletonBones = function()
-        -- shells follow limbs while character spins
         if state.chamShells and state.chamShellTargets then
             for i, shell in ipairs(state.chamShells) do
                 local target = state.chamShellTargets[i]
@@ -5809,7 +5466,6 @@ function library:EspPreview(options)
                 end
             end
         end
-        -- 2D skeleton on top
         pcall(updateSkeletonOverlay)
     end
 
@@ -5822,7 +5478,6 @@ function library:EspPreview(options)
             if ok then return previewObjects.skelLines end
         end
         local lines = {}
-        -- parent to viewport: UI draws above 3D content
         for i = 1, 18 do
             local line = library:create("Frame", {
                 Parent = viewport,
@@ -5901,7 +5556,6 @@ function library:EspPreview(options)
                     li = li + 1
                 end
             else
-                -- skip missing pair without consuming? still advance to keep stable indices
                 line.Visible = false
                 li = li + 1
             end
@@ -5917,7 +5571,6 @@ function library:EspPreview(options)
         local now = tick()
         if not force and (now - state.lastCloneAt) < 1.0 then return end
 
-        -- Prefer static preview dummy (no walk cycle), else local character
         local src = nil
         local tempDefault = nil
         pcall(function()
@@ -5964,7 +5617,6 @@ function library:EspPreview(options)
         end
 
         clone.Name = "EspPreviewChar"
-        -- WorldModel improves engine instance rendering inside ViewportFrame
         local world = viewport:FindFirstChildOfClass("WorldModel")
         if not world then
             world = Instance.new("WorldModel")
@@ -6002,7 +5654,6 @@ function library:EspPreview(options)
     end
 
     local function updateCamera()
-        -- Fixed camera (Atlanta): unzoomable, character spins in place
         if not state.clone or not state.clone.Parent then return end
         pcall(function()
             state.rotation = (state.rotation or 0) + 0.5
@@ -6016,7 +5667,6 @@ function library:EspPreview(options)
             cam.CFrame = CFrame.new(Vector3.new(0, 1.5, 4), Vector3.new(0, 1, -6))
             viewport.CurrentCamera = cam
         end)
-        -- skeleton lines must track the spin every frame
         pcall(updateSkeletonBones)
     end
 
@@ -6037,9 +5687,7 @@ function library:EspPreview(options)
         fireCallback(bool)
     end
 
-    -- Atlanta preview: fixed camera, no orbit, no zoom (input ignored)
 
-    -- Panel drag
     do
         local dragging, start, start_pos
         local function begin_drag(input)
@@ -6076,13 +5724,12 @@ function library:EspPreview(options)
         setOpen(false)
         pcall(function()
             flags[enabledFlag] = false
-            flags["emblem_esp_preview"] = false
+            flags["esp_preview_flag"] = false
             if type(options.Callback) == "function" then options.Callback(false) end
             if type(options.callback) == "function" then options.callback(false) end
             if config_flags and config_flags[enabledFlag] then pcall(config_flags[enabledFlag], false) end
-            if config_flags and config_flags["emblem_esp_preview"] then pcall(config_flags["emblem_esp_preview"], false) end
-            -- notify any listeners
-            if shared then shared._emblemEspPreviewClosed = tick() end
+            if config_flags and config_flags["esp_preview_flag"] then pcall(config_flags["esp_preview_flag"], false) end
+            if shared then shared._espPreviewClosed = tick() end
         end)
     end)
 
@@ -6090,18 +5737,17 @@ function library:EspPreview(options)
     library:connection(run.RenderStepped, function(dt)
         if state.destroyed then return end
         if not panel or not panel.Parent then return end
-        -- Always dock + sync visibility with main menu
         local menuOn = true
         pcall(function()
             if library.items and library.items.Enabled == false then menuOn = false end
-            if shared and shared._emblemMenuOpen == false then menuOn = false end
-            if shared and shared._emblemMenuMain and shared._emblemMenuMain.Visible == false then menuOn = false end
+            if shared and shared._hostMenuOpen == false then menuOn = false end
+            if shared and shared._hostMenuMain and shared._hostMenuMain.Visible == false then menuOn = false end
         end)
         panel.Visible = state.open and menuOn
         if gui then gui.Enabled = state.open and menuOn end
         if not state.open or not menuOn then return end
         dock_to_main()
-        updateCamera() -- spins character + fixed cam
+        updateCamera()
         accum = accum + (dt or 0.016)
         if accum < 0.2 then return end
         accum = 0
@@ -6140,7 +5786,6 @@ function library:EspPreview(options)
         GetCamera = function() return cam end,
         GetPanel = function() return panel end,
         GetViewport = function() return viewport end,
-        -- Real ESP host: Emblem projects normal ESP onto this rect
         GetRenderContext = function()
             if not state.open or not panel or not panel.Parent then return nil end
             local clone = state.clone
