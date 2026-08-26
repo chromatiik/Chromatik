@@ -5843,6 +5843,378 @@ function library:EspPreview(options)
 end
 
 
+-- ============================================================
+-- PlayerCard — lock-target style panel (same look as KeybindList)
+-- ============================================================
+function library:PlayerCard(params)
+    params = params or {}
+    local width = tonumber(params.Width) or 220
+    local height = tonumber(params.Height) or 118
+    local position = params.Position or dim2(0.5, -width / 2, 0, 58)
+    local pos_file = library.directory .. "/playercard_pos.json"
+    local uidKey = params.Uid and tostring(params.Uid) or "default"
+
+    -- per-uid positions stored as { [uid] = {x,y}, default = {x,y} }
+    local function load_pos()
+        local fallback = position
+        local ok, result = pcall(function()
+            if not (isfile and isfile(pos_file) and readfile) then return nil end
+            local data = http_service:JSONDecode(readfile(pos_file))
+            if type(data) ~= "table" then return nil end
+            local entry = data[uidKey] or data.default
+            if type(entry) == "table" and entry.x ~= nil and entry.y ~= nil then
+                return dim2(0, tonumber(entry.x) or 0, 0, tonumber(entry.y) or 0)
+            end
+            if data.x ~= nil and data.y ~= nil then
+                return dim2(0, tonumber(data.x) or 0, 0, tonumber(data.y) or 0)
+            end
+            return nil
+        end)
+        if ok and result then return result end
+        return fallback
+    end
+
+    local function save_pos(panel)
+        pcall(function()
+            if not writefile then return end
+            pcall(makefolder, library.directory)
+            local all = {}
+            if isfile and isfile(pos_file) and readfile then
+                local ok, data = pcall(function() return http_service:JSONDecode(readfile(pos_file)) end)
+                if ok and type(data) == "table" then all = data end
+            end
+            local p = panel.Position
+            local entry = {
+                x = math.floor(p.X.Offset + camera.ViewportSize.X * p.X.Scale + 0.5),
+                y = math.floor(p.Y.Offset + camera.ViewportSize.Y * p.Y.Scale + 0.5),
+            }
+            all[uidKey] = entry
+            all.default = entry
+            writefile(pos_file, http_service:JSONEncode(all))
+        end)
+    end
+
+    position = load_pos()
+
+    local gui = library:create("ScreenGui", {
+        Parent = coregui,
+        Name = "\0",
+        Enabled = true,
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+        DisplayOrder = 9991,
+    })
+
+    local panel = library:create("Frame", {
+        Parent = gui,
+        Position = position,
+        Size = dim2(0, width, 0, height),
+        BackgroundColor3 = themes.preset.section,
+        BorderSizePixel = 0,
+        Visible = params.Visible ~= false,
+        ZIndex = 70,
+        Active = true,
+    })
+    library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 10) })
+    library:create("UIStroke", {
+        Parent = panel,
+        Color = rgb(30, 30, 36),
+        Thickness = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    })
+
+    -- avatar
+    local avHolder = library:create("Frame", {
+        Parent = panel,
+        Position = dim2(0, 12, 0, 12),
+        Size = dim2(0, 36, 0, 36),
+        BackgroundColor3 = themes.preset.light,
+        BorderSizePixel = 0,
+        ZIndex = 71,
+    })
+    library:create("UICorner", { Parent = avHolder, CornerRadius = dim(1, 0) })
+
+    local avatar = library:create("ImageLabel", {
+        Parent = avHolder,
+        Size = dim2(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 72,
+    })
+    library:create("UICorner", { Parent = avatar, CornerRadius = dim(1, 0) })
+
+    local nameLabel = library:create("TextLabel", {
+        Parent = panel,
+        FontFace = fonts.font,
+        Text = params.DisplayName or "Player",
+        TextSize = 14,
+        TextColor3 = themes.preset.text,
+        BackgroundTransparency = 1,
+        Position = dim2(0, 56, 0, 10),
+        Size = dim2(1, -88, 0, 16),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        BorderSizePixel = 0,
+        ZIndex = 72,
+    })
+
+    local userLabel = library:create("TextLabel", {
+        Parent = panel,
+        FontFace = fonts.font,
+        Text = "@" .. tostring(params.Username or "user"),
+        TextSize = 12,
+        TextColor3 = themes.preset.dimtext,
+        BackgroundTransparency = 1,
+        Position = dim2(0, 56, 0, 26),
+        Size = dim2(1, -88, 0, 14),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        BorderSizePixel = 0,
+        ZIndex = 72,
+    })
+
+    local ageLabel = library:create("TextLabel", {
+        Parent = panel,
+        FontFace = fonts.font,
+        Text = params.AgeText or "Age —",
+        TextSize = 11,
+        TextColor3 = themes.preset.dimtext,
+        BackgroundTransparency = 1,
+        Position = dim2(0, 56, 0, 40),
+        Size = dim2(1, -88, 0, 12),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BorderSizePixel = 0,
+        ZIndex = 72,
+    })
+
+    -- lucide pin (same as KeybindList)
+    local pinBtn = library:create("ImageButton", {
+        Parent = panel,
+        BackgroundTransparency = 1,
+        AnchorPoint = vec2(1, 0),
+        Position = dim2(1, -10, 0, 10),
+        Size = dim2(0, 16, 0, 16),
+        ImageColor3 = themes.preset.dimtext,
+        BorderSizePixel = 0,
+        ZIndex = 74,
+        ScaleType = Enum.ScaleType.Fit,
+    })
+    ApplyIcon(pinBtn, "pin")
+
+    local pinned = params.Pinned == true
+    pinBtn.ImageColor3 = pinned and themes.preset.accent or themes.preset.dimtext
+
+    local hpBg = library:create("Frame", {
+        Parent = panel,
+        Position = dim2(0, 12, 0, 56),
+        Size = dim2(1, -24, 0, 3),
+        BackgroundColor3 = themes.preset.element,
+        BorderSizePixel = 0,
+        ZIndex = 71,
+    })
+    library:create("UICorner", { Parent = hpBg, CornerRadius = dim(0, 2) })
+
+    local hpFill = library:create("Frame", {
+        Parent = hpBg,
+        Size = dim2(1, 0, 1, 0),
+        BackgroundColor3 = rgb(80, 200, 120),
+        BorderSizePixel = 0,
+        ZIndex = 72,
+    })
+    library:create("UICorner", { Parent = hpFill, CornerRadius = dim(0, 2) })
+
+    local hpLabel = library:create("TextLabel", {
+        Parent = panel,
+        FontFace = fonts.font,
+        Text = "HP —",
+        TextSize = 11,
+        TextColor3 = themes.preset.dimtext,
+        BackgroundTransparency = 1,
+        Position = dim2(0, 12, 0, 60),
+        Size = dim2(1, -24, 0, 12),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BorderSizePixel = 0,
+        ZIndex = 72,
+    })
+
+    local function makeBtn(text, x)
+        local b = library:create("TextButton", {
+            Parent = panel,
+            FontFace = fonts.font,
+            Text = text,
+            TextSize = 12,
+            TextColor3 = themes.preset.text,
+            AutoButtonColor = false,
+            BackgroundColor3 = themes.preset.element,
+            Position = dim2(0, x, 0, 84),
+            Size = dim2(0, 62, 0, 24),
+            BorderSizePixel = 0,
+            ZIndex = 73,
+        })
+        library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
+        b.MouseEnter:Connect(function()
+            if b:GetAttribute("Active") ~= true then
+                b.BackgroundColor3 = themes.preset.light
+            end
+        end)
+        b.MouseLeave:Connect(function()
+            if b:GetAttribute("Active") == true then
+                b.BackgroundColor3 = themes.preset.accent
+                b.TextColor3 = rgb(18, 18, 22)
+            else
+                b.BackgroundColor3 = themes.preset.element
+                b.TextColor3 = themes.preset.text
+            end
+        end)
+        return b
+    end
+
+    local btnRage = makeBtn("Rage", 12)
+    local btnTP = makeBtn("Teleport", 80)
+    local btnSpec = makeBtn("Spectate", 148)
+
+    local function setBtnActive(btn, active, onText, offText)
+        btn:SetAttribute("Active", active == true)
+        if active then
+            btn.BackgroundColor3 = themes.preset.accent
+            btn.TextColor3 = rgb(18, 18, 22)
+            if onText then btn.Text = onText end
+        else
+            btn.BackgroundColor3 = themes.preset.element
+            btn.TextColor3 = themes.preset.text
+            if offText then btn.Text = offText end
+        end
+    end
+
+    -- drag (header area); ignore pin button
+    do
+        local dragging, start, start_pos
+        panel.InputBegan:Connect(function(input)
+            if input.UserInputType ~= Enum.UserInputType.MouseButton1
+                and input.UserInputType ~= Enum.UserInputType.Touch then return end
+            local relY = input.Position.Y - panel.AbsolutePosition.Y
+            if relY > 52 then return end
+            local pAbs, pSz = pinBtn.AbsolutePosition, pinBtn.AbsoluteSize
+            local px, py = input.Position.X, input.Position.Y
+            if px >= pAbs.X and px <= pAbs.X + pSz.X and py >= pAbs.Y and py <= pAbs.Y + pSz.Y then
+                return
+            end
+            dragging = true
+            start = input.Position
+            start_pos = panel.Position
+        end)
+        panel.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch then
+                if dragging then
+                    dragging = false
+                    save_pos(panel)
+                end
+            end
+        end)
+        library:connection(uis.InputChanged, function(input)
+            if not dragging then return end
+            if input.UserInputType ~= Enum.UserInputType.MouseMovement
+                and input.UserInputType ~= Enum.UserInputType.Touch then return end
+            local nx = start_pos.X.Offset + (input.Position.X - start.X)
+            local ny = start_pos.Y.Offset + (input.Position.Y - start.Y)
+            panel.Position = dim2(0, nx, 0, ny)
+        end)
+    end
+
+    local api = {
+        Gui = gui,
+        Panel = panel,
+        PinButton = pinBtn,
+        RageButton = btnRage,
+        TeleportButton = btnTP,
+        SpectateButton = btnSpec,
+        IsPinned = function() return pinned end,
+        SetPinned = function(bool)
+            pinned = bool == true
+            pinBtn.ImageColor3 = pinned and themes.preset.accent or themes.preset.dimtext
+        end,
+        SetVisible = function(bool)
+            panel.Visible = bool == true
+        end,
+        SetIdentity = function(opts)
+            opts = opts or {}
+            if opts.DisplayName then nameLabel.Text = tostring(opts.DisplayName) end
+            if opts.Username then userLabel.Text = "@" .. tostring(opts.Username) end
+            if opts.AgeText then ageLabel.Text = tostring(opts.AgeText) end
+            if opts.AvatarImage then avatar.Image = opts.AvatarImage end
+        end,
+        SetHealth = function(hp, maxHp)
+            hp = tonumber(hp) or 0
+            maxHp = math.max(tonumber(maxHp) or 100, 1)
+            local pct = clamp(hp / maxHp, 0, 1)
+            hpFill.Size = dim2(pct, 0, 1, 0)
+            if pct > 0.5 then
+                hpFill.BackgroundColor3 = rgb(80, 200, 120)
+            elseif pct > 0.25 then
+                hpFill.BackgroundColor3 = rgb(230, 180, 60)
+            else
+                hpFill.BackgroundColor3 = rgb(220, 70, 90)
+            end
+            hpLabel.Text = string.format("HP  %d / %d", math.floor(hp + 0.5), math.floor(maxHp + 0.5))
+        end,
+        SetRageActive = function(active)
+            setBtnActive(btnRage, active, "Stop Rage", "Rage")
+        end,
+        SetSpectateActive = function(active)
+            setBtnActive(btnSpec, active, "Unspectate", "Spectate")
+        end,
+        SetAvatarUserId = function(userId)
+            task.spawn(function()
+                local ok, content = pcall(function()
+                    return players:GetUserThumbnailAsync(
+                        userId,
+                        Enum.ThumbnailType.HeadShot,
+                        Enum.ThumbnailSize.Size150x150
+                    )
+                end)
+                if ok and content then avatar.Image = content end
+            end)
+        end,
+        SavePosition = function()
+            save_pos(panel)
+        end,
+        Destroy = function()
+            pcall(function() gui:Destroy() end)
+        end,
+    }
+
+    pinBtn.MouseButton1Click:Connect(function()
+        api.SetPinned(not pinned)
+        if type(params.OnPin) == "function" then
+            pcall(params.OnPin, pinned)
+        end
+    end)
+
+    if type(params.OnRage) == "function" then
+        btnRage.MouseButton1Click:Connect(function()
+            pcall(params.OnRage)
+        end)
+    end
+    if type(params.OnTeleport) == "function" then
+        btnTP.MouseButton1Click:Connect(function()
+            pcall(params.OnTeleport)
+        end)
+    end
+    if type(params.OnSpectate) == "function" then
+        btnSpec.MouseButton1Click:Connect(function()
+            pcall(params.OnSpectate)
+        end)
+    end
+
+    if params.UserId then
+        api.SetAvatarUserId(params.UserId)
+    end
+
+    return api
+end
+
 
 getgenv().Chromatik = library
 getgenv().Aether = library
