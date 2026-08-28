@@ -837,7 +837,7 @@ function library:window(properties)
         items["search_btn"] = library:create("TextButton", {
             Parent = items["side_frame"],
             Name = "\0",
-            Text = "  Search", -- icon added below
+            Text = "",
             TextXAlignment = Enum.TextXAlignment.Left,
             TextColor3 = themes.preset.dimtext,
             TextSize = 14,
@@ -858,10 +858,9 @@ function library:window(properties)
             Thickness = 1,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
-        library:create("UIPadding", { Parent = items["search_btn"], PaddingLeft = dim(0, 30) })
         local sicon = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
-            Size = dim2(0, 14, 0, 14), Position = dim2(0, 8, 0.5, -7),
+            Size = dim2(0, 13, 0, 13), Position = dim2(0, 8, 0.5, -6.5), AnchorPoint = vec2(0, 0),
             ImageColor3 = themes.preset.dimtext, ZIndex = 9, BorderSizePixel = 0,
         })
         pcall(function() ApplyIcon(sicon, "search") end)
@@ -869,7 +868,7 @@ function library:window(properties)
         local slbl = library:create("TextLabel", {
             Parent = items["search_btn"], Text = "Search", FontFace = fonts.font, TextSize = 14,
             TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-            Position = dim2(0, 28, 0, 0), Size = dim2(1, -32, 1, 0),
+            Position = dim2(0, 26, 0, 0), Size = dim2(1, -30, 1, 0),
             TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 9,
         })
         items["search_btn"].MouseButton1Click:Connect(function()
@@ -1625,8 +1624,9 @@ function library:tab(properties)
 
         items["tab_holder"].Visible = true
         items["tab_holder"].Parent = self.items["main"]
-        items["multi_section_button_holder"].Visible = true
-        items["multi_section_button_holder"].Parent = self.items["multi_holder"]
+        local onlyOne = cfg.pages and #cfg.pages <= 1
+        items["multi_section_button_holder"].Visible = not onlyOne
+        items["multi_section_button_holder"].Parent = onlyOne and library["cache"] or self.items["multi_holder"]
 
         self.selected_tab = {
             items["button"],
