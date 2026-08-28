@@ -1940,6 +1940,7 @@ function library:section(properties)
             local dragging, start, home, ghost
             home = self.items and self.items["column"]
             items["button"].InputBegan:Connect(function(input)
+                return -- drag disabled
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = true
                 start = input.Position
