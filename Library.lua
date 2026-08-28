@@ -1614,6 +1614,13 @@ function library:tab(properties)
             items["tab_holder"],
             items["multi_section_button_holder"],
         }
+        -- RefreshPageScroll and the mouse-wheel handler both read this off
+        -- the shared `library` table (they aren't window methods, so they
+        -- have no `self`), but only `self.selected_tab` (the window
+        -- instance) was ever being set - the global copy stayed nil
+        -- forever, so both those readers always bailed out early and
+        -- mouse-wheel scrolling never worked. Mirror it here too.
+        library.selected_tab = self.selected_tab
         library:close_element()
     end
 
@@ -1822,46 +1829,39 @@ function library.RefreshPageScroll()
         end
     end)
     if not th then
+        -- Fallback only ever matters if selected_tab hasn't been set yet
+        -- (e.g. this runs before the very first tab finishes opening).
+        -- Columns are parented under a plain Frame, not the ScrollingFrame
+        -- directly, so walk up to find it instead of checking col.Parent.
         for _, col in ipairs(library._columns or {}) do
-            if col and col.Parent and col.Parent:IsA("ScrollingFrame") and col.Parent.Visible then
-                th = col.Parent
-                break
+            if col and col.Parent then
+                local anc = col.Parent
+                while anc and not anc:IsA("ScrollingFrame") do
+                    anc = anc.Parent
+                end
+                if anc and anc.Visible then
+                    th = anc
+                    break
+                end
             end
         end
     end
     if not (th and th:IsA("ScrollingFrame")) then return end
+
+    -- Columns use AutomaticSize.Y, so Roblox's own layout engine has
+    -- already computed their true natural content height - read it
+    -- directly instead of re-deriving it by walking arbitrary
+    -- descendants and re-summing children, which is easy to get wrong
+    -- (and was undercounting, leaving the canvas too short to scroll).
     local maxH = 0
-    local function bump(h)
-        if h and h > maxH then maxH = h end
-    end
-    for _, page in ipairs(th:GetChildren()) do
-        if page:IsA("GuiObject") and page.Visible then
-            bump(page.AbsoluteSize.Y)
-            for _, col in ipairs(page:GetDescendants()) do
-                if col:IsA("Frame") and col.Parent and col.Parent:IsA("Frame") then
-                    local h = 0
-                    for _, ch in ipairs(col:GetChildren()) do
-                        if ch:IsA("Frame") and ch.AbsoluteSize.Y > 20 then
-                            h = h + ch.AbsoluteSize.Y + 8
-                        end
-                    end
-                    bump(h)
-                    bump(col.AbsoluteSize.Y)
-                end
-            end
-        end
-    end
     for _, col in ipairs(library._columns or {}) do
-        if col and col.Parent and th and col:IsDescendantOf(th) then
-            local h = 0
-            for _, ch in ipairs(col:GetChildren()) do
-                if ch:IsA("Frame") and ch.AbsoluteSize.Y > 20 then
-                    h = h + ch.AbsoluteSize.Y + 8
-                end
+        if col and col.Parent and col.Visible ~= false and col:IsDescendantOf(th) then
+            if col.AbsoluteSize.Y > maxH then
+                maxH = col.AbsoluteSize.Y
             end
-            bump(h)
         end
     end
+
     th.AutomaticCanvasSize = Enum.AutomaticSize.None
     th.ScrollingEnabled = true
     th.Active = true
@@ -1870,10 +1870,10 @@ end
 
 function library.SnapSection(outline, mx, my)
     if not outline then return end
-    pcall(function()
-        local loc = uis:GetMouseLocation()
-        mx, my = loc.X, loc.Y
-    end)
+    -- mx/my must already be in the same coordinate space as AbsolutePosition
+    -- (i.e. from an InputObject's .Position, not UserInputService:GetMouseLocation(),
+    -- which additionally includes the topbar GuiInset and reads ~36px too high
+    -- against every AbsolutePosition-based check below).
     local best
     for _, col in ipairs(library._visibleColumns()) do
         local p, s = col.AbsolutePosition, col.AbsoluteSize
@@ -2147,7 +2147,12 @@ function library:section(properties)
                     })
                 end
                 library._floatGui.Visible = true
-                local loc = uis:GetMouseLocation()
+                -- input.Position (not UserInputService:GetMouseLocation()) - it's
+                -- reported in the same coordinate space as AbsolutePosition, so
+                -- everything downstream (grab offset, ghost placement, column
+                -- hit-testing) lines up with where things are actually drawn
+                -- instead of reading ~36px too high from the topbar GuiInset.
+                local loc = input.Position
                 local abs, sz = items["outline"].AbsolutePosition, items["outline"].AbsoluteSize
                 items["outline"]:SetAttribute("GrabX", loc.X - abs.X)
                 items["outline"]:SetAttribute("GrabY", loc.Y - abs.Y)
@@ -2158,7 +2163,7 @@ function library:section(properties)
             uis.InputChanged:Connect(function(input)
                 if not dragging then return end
                 if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-                local loc = uis:GetMouseLocation()
+                local loc = input.Position
                 local gx = items["outline"]:GetAttribute("GrabX") or 0
                 local gy = items["outline"]:GetAttribute("GrabY") or 0
                 items["outline"].Position = dim2(0, loc.X - gx, 0, loc.Y - gy)
@@ -2170,7 +2175,7 @@ function library:section(properties)
                 if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = false
                 library._sectionDragging = false
-                local loc = uis:GetMouseLocation()
+                local loc = input.Position
                 library.SnapSection(items["outline"], loc.X, loc.Y)
             end)
         end
