@@ -1963,10 +1963,13 @@ function library:section(properties)
                     end
                     if ghost and ghost.Parent then ghost:Destroy() end
                     if slot then
+                        local p, s = slot.AbsolutePosition, slot.AbsoluteSize
                         ghost = library:create("Frame", {
-                            Parent = slot, Size = dim2(1, 0, 0, items["outline"].AbsoluteSize.Y),
-                            BackgroundColor3 = rgb(90,90,100), BackgroundTransparency = 0.35, BorderSizePixel = 0,
-                            ZIndex = 8,
+                            Parent = library._floatGui,
+                            Position = dim2(0, p.X + 4, 0, p.Y + 4),
+                            Size = dim2(0, s.X - 8, 0, items["outline"].AbsoluteSize.Y),
+                            BackgroundColor3 = rgb(120,120,140), BackgroundTransparency = 0.45, BorderSizePixel = 0,
+                            ZIndex = 20,
                         })
                         library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
                     end
@@ -2195,6 +2198,9 @@ function library:toggle(options)
 
     cfg.set(cfg.default)
     config_flags[cfg.flag] = cfg.set
+    library._searchIndex = library._searchIndex or {}
+    table.insert(library._searchIndex, { name = cfg.name, inst = items["toggle"] or items["slider"] or items["outline"], tab = library._buildingTab, page = library._buildingPage })
+
 
     library._searchIndex = library._searchIndex or {}
     table.insert(library._searchIndex, { name = cfg.name, inst = items["toggle"] or items["name"] })
@@ -2387,6 +2393,8 @@ function library:slider(options)
     end)
 
     cfg.set(cfg.default)
+    library._searchIndex = library._searchIndex or {}
+    table.insert(library._searchIndex, { name = cfg.name, inst = items["slider"] or items["outline"], tab = library._buildingTab, page = library._buildingPage })
     config_flags[cfg.flag] = cfg.set
     table.insert(library._searchIndex or {}, { name = cfg.name, inst = items["slider"], set = cfg.set })
 
