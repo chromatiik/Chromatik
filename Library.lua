@@ -642,6 +642,12 @@ end
 
 function library.SnapSection(outline, mx, my)
     if not outline then return false end
+    pcall(function()
+        local loc = uis:GetMouseLocation()
+        local inset = game:GetService("GuiService"):GetGuiInset()
+        mx = loc.X
+        my = loc.Y - inset.Y
+    end)
     local drop, best = nil, 1e18
     local main = library._windowMain
     for _, col in ipairs(library._columns or {}) do
@@ -1253,19 +1259,25 @@ function library:window(properties)
         if bool == nil then
             bool = not library["items"].Enabled
         end
-        library["items"].Enabled = bool and true or false
+        local on = bool and true or false
+        library["items"].Enabled = on
+        pcall(function()
+            if items["main"] then items["main"].Visible = on end
+        end)
         pcall(function()
             shared = shared or {}
-            shared._hostMenuOpen = library["items"].Enabled
+            shared._hostMenuOpen = on
         end)
     end
 
+    library._menuFlipAt = 0
     library:connection(uis.InputBegan, function(input)
         if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if library._rebindingMenu then return end
-        if input.KeyCode == library.MenuKeybind then
-            cfg.toggle_menu(not library["items"].Enabled)
-        end
+        if input.KeyCode ~= library.MenuKeybind then return end
+        if tick() - (library._menuFlipAt or 0) < 0.25 then return end
+        library._menuFlipAt = tick()
+        cfg.toggle_menu(not library["items"].Enabled)
     end)
 
     return setmetatable(cfg, library)
@@ -1760,6 +1772,10 @@ function library:section(properties)
             local ghost
             items["outline"].Active = true
             items["outline"].InputBegan:Connect(function(input)
+                -- header-only: ignore body clicks
+                return
+            end)
+            if false then items["outline"].InputBegan:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 local relY = input.Position.Y - items["outline"].AbsolutePosition.Y
                 if relY > 28 then return end
@@ -1791,9 +1807,9 @@ function library:section(properties)
                 dragging = false
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
                 library.SnapSection(items["outline"], input.Position.X, input.Position.Y)
-                -- else stays floating on _floatGui outside the menu
             end)
         end
+        end -- if false (body drag disabled)
 
         items["inline"] = library:create("Frame", {
             Parent = items["outline"],
@@ -6647,15 +6663,22 @@ function library.OpenSearch()
                     end
                 end
                 pcall(function()
-                    if use and use.open_tab then
+                    if use and use.items and use.items["button"] then
+                        pcall(use.open_tab)
+                    elseif use and use.open_tab then
                         use.open_tab()
                     end
-                    local btn = use and use.items and use.items["button"]
-                    if btn then
-                        firesignal(btn.MouseButton1Down, { UserInputType = Enum.UserInputType.MouseButton1 })
-                    end
                 end)
-                task.delay(0.15, function() reveal(inst) end)
+                task.spawn(function()
+                    for _ = 1, 12 do
+                        local main = library._windowMain
+                        if inst and inst.Parent and main and inst:IsDescendantOf(main) then
+                            break
+                        end
+                        task.wait(0.05)
+                    end
+                    reveal(inst)
+                end)
             end)
         end
         for _, item in ipairs(library._searchIndex or {}) do
