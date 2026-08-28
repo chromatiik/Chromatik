@@ -528,6 +528,18 @@ function library:unload_menu()
     if library["watermark_gui"] then
         library["watermark_gui"]:Destroy()
     end
+    if library._floatGui then
+        pcall(function() library._floatGui:Destroy() end)
+        library._floatGui = nil
+    end
+    if library._searchGui then
+        pcall(function() library._searchGui:Destroy() end)
+        library._searchGui = nil
+    end
+    if library._searchPanel then
+        pcall(function() library._searchPanel:Destroy() end)
+        library._searchPanel = nil
+    end
     for _, connection in library.connections do
         pcall(function()
             connection:Disconnect()
@@ -678,6 +690,7 @@ function library:window(properties)
         })
         items["main"].Position = dim2(0, items["main"].AbsolutePosition.X, 0, items["main"].AbsolutePosition.Y)
         library._windowMain = items["main"]
+        library._windowCfg = cfg
 
         library:create("UICorner", {
             Parent = items["main"],
@@ -1643,6 +1656,8 @@ function library:sub_tab(properties)
         Padding = dim(0, 7),
         SortOrder = Enum.SortOrder.LayoutOrder,
     })
+    library._columns = library._columns or {}
+    table.insert(library._columns, items["column"])
     return setmetatable(cfg, library)
 end
 
@@ -1848,20 +1863,19 @@ function library:section(properties)
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
                 local mx, my = input.Position.X, input.Position.Y
                 local drop
-                pcall(function()
-                    for _, d in ipairs(library.items:GetDescendants()) do
-                        if d:IsA("Frame") and d.AbsoluteSize.X > 140 and d.AbsoluteSize.Y > 100 then
-                            local p, s = d.AbsolutePosition, d.AbsoluteSize
-                            if mx >= p.X and mx <= p.X+s.X and my >= p.Y and my <= p.Y+s.Y then
-                                drop = d
-                                break
-                            end
+                for _, col in ipairs(library._columns or {}) do
+                    if col and col.Parent and col.AbsoluteSize.X > 20 then
+                        local p, s = col.AbsolutePosition, col.AbsoluteSize
+                        if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
+                            drop = col
+                            break
                         end
                     end
-                end)
+                end
                 if drop then
                     items["outline"].Parent = drop
-                    items["outline"].Size = dim2(1, 0, cfg.size, -3)
+                    items["outline"].Size = dim2(1, 0, 0, math.max(items["outline"].AbsoluteSize.Y, 80))
+                    items["outline"].AutomaticSize = Enum.AutomaticSize.Y
                     items["outline"].Position = dim2(0, 0, 0, 0)
                 end
             end)
@@ -2019,6 +2033,7 @@ function library:toggle(options)
         Name = "\0",
         Position = dim2(1, 0, 0, 0),
         Size = dim2(0, 36, 0, 18),
+        LayoutOrder = 2,
         BorderSizePixel = 0,
         TextSize = 14,
         BackgroundColor3 = rgb(33, 33, 35),
@@ -2988,7 +3003,7 @@ function library:keybind(options)
     }
 
     local items = cfg.items
-    local kbParent = self.items and (self.items["left_components"] or self.items["right_components"] or self.items["elements"])
+    local kbParent = self.items and (self.items["right_components"] or self.items["elements"])
     items["keybind_element"] = library:create("TextButton", {
         FontFace = fonts.font,
         TextColor3 = rgb(0, 0, 0),
@@ -6601,9 +6616,21 @@ function library.OpenSearch()
             b.MouseButton1Click:Connect(function()
                 hide()
                 pcall(function()
-                    if tab and tab.open_tab then tab.open_tab() end
+                    local use = tab
+                    if not (use and use.open_tab) then
+                        for _, tb in ipairs(library._tabs or {}) do
+                            local holder = tb.items and (tb.items["tab_holder"] or tb.items["page"] or tb.items["tab_parent"])
+                            if holder and inst and inst:IsDescendantOf(holder) then
+                                use = tb
+                                break
+                            end
+                        end
+                    end
+                    if use and use.open_tab then
+                        use.open_tab()
+                    end
                 end)
-                task.delay(0.05, function() reveal(inst) end)
+                task.delay(0.12, function() reveal(inst) end)
             end)
         end
         for _, item in ipairs(library._searchIndex or {}) do
@@ -6664,12 +6691,12 @@ function library:InlinePreview(parent)
     parent = parent or (self.items and self.items["elements"])
     if not parent then return end
     local hold = library:create("Frame", {
-        Parent = parent, Size = dim2(1, 0, 0, 220), BackgroundColor3 = themes.preset.element,
+        Parent = parent, Size = dim2(1, 0, 0, 248), BackgroundColor3 = themes.preset.element,
         BorderSizePixel = 0,
     })
     library:create("UICorner", { Parent = hold, CornerRadius = dim(0, 8) })
     local vp = Instance.new("ViewportFrame")
-    vp.Size = UDim2.new(1, -8, 1, -36)
+    vp.Size = UDim2.new(1, -8, 1, -64)
     vp.Position = UDim2.new(0, 4, 0, 4)
     vp.BackgroundColor3 = themes.preset.background
     vp.BorderSizePixel = 0
@@ -6680,51 +6707,75 @@ function library:InlinePreview(parent)
     local cam = Instance.new("Camera")
     cam.Parent = vp
     vp.CurrentCamera = cam
-    local dummy = Instance.new("Model")
-    dummy.Name = "Dummy"
-    dummy.Parent = world
-    local function part(n, sz, cf)
-        local p = Instance.new("Part")
-        p.Name = n; p.Size = sz; p.CFrame = cf; p.Anchored = true; p.CanCollide = false
-        p.Color = Color3.fromRGB(170,170,175); p.Material = Enum.Material.SmoothPlastic
-        p.Parent = dummy
-        return p
+
+    local function loadClone()
+        for _, c in ipairs(world:GetChildren()) do
+            if c:IsA("Model") then c:Destroy() end
+        end
+        local src = lp.Character
+        if not src then return end
+        pcall(function() src.Archivable = true end)
+        local dummy
+        pcall(function() dummy = src:Clone() end)
+        if not dummy then return end
+        for _, d in ipairs(dummy:GetDescendants()) do
+            if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Animator") or d:IsA("Sound") then
+                pcall(function() d:Destroy() end)
+            end
+            if d:IsA("BasePart") then
+                d.Anchored = true
+                d.CanCollide = false
+            end
+        end
+        dummy.Parent = world
+        local hrp = dummy:FindFirstChild("HumanoidRootPart") or dummy.PrimaryPart or dummy:FindFirstChildWhichIsA("BasePart")
+        if hrp then
+            dummy:PivotTo(CFrame.new(0, 2, 0))
+            cam.CFrame = CFrame.new(0, 2.5, 7.5)
+        end
+        return dummy
     end
-    dummy.PrimaryPart = part("HumanoidRootPart", Vector3.new(2,2,1), CFrame.new(0,2,0))
-    part("Head", Vector3.new(1.1,1.1,1.1), CFrame.new(0,3.4,0))
-    part("Torso", Vector3.new(2,2,1), CFrame.new(0,2.2,0))
-    part("Left Arm", Vector3.new(1,2,1), CFrame.new(-1.5,2.2,0))
-    part("Right Arm", Vector3.new(1,2,1), CFrame.new(1.5,2.2,0))
-    part("Left Leg", Vector3.new(1,2,1), CFrame.new(-0.5,0.2,0))
-    part("Right Leg", Vector3.new(1,2,1), CFrame.new(0.5,0.2,0))
-    cam.CFrame = CFrame.new(0, 2.2, 8) * CFrame.Angles(0, 0, 0)
+    local dummy = loadClone()
     local rot = true
     local ang = 0
     library:connection(run.RenderStepped, function(dt)
-        if not hold.Parent or not rot then return end
-        ang = ang + dt * 0.6
-        cam.CFrame = CFrame.new(math.sin(ang)*6, 2.4, math.cos(ang)*6) * CFrame.lookAt(Vector3.new(math.sin(ang)*6, 2.4, math.cos(ang)*6), Vector3.new(0,2.2,0))
+        if not hold.Parent or not rot or not dummy or not dummy.Parent then return end
+        ang = ang + dt * 0.7
+        dummy:PivotTo(CFrame.new(0, 2, 0) * CFrame.Angles(0, ang, 0))
+        cam.CFrame = CFrame.new(0, 2.6, 7.2)
     end)
-    local row = library:create("Frame", {
-        Parent = hold, Position = dim2(0, 4, 1, -30), Size = dim2(1, -8, 0, 26),
+
+    local col = library:create("Frame", {
+        Parent = hold, Position = dim2(0, 8, 1, -58), Size = dim2(1, -16, 0, 52),
         BackgroundTransparency = 1,
     })
-    local function mini(text, x)
-        local b = library:create("TextButton", {
-            Parent = row, Text = text, FontFace = fonts.font, TextSize = 12,
-            TextColor3 = themes.preset.text, BackgroundColor3 = themes.preset.light,
-            Position = dim2(0, x, 0, 0), Size = dim2(0, 100, 0, 24), BorderSizePixel = 0, AutoButtonColor = false,
-        })
-        library:create("UICorner", { Parent = b, CornerRadius = dim(0, 5) })
-        return b
-    end
-    local a = mini("Auto Rotate", 0)
-    local r = mini("Reload Preview", 108)
-    a.MouseButton1Click:Connect(function() rot = not rot end)
-    r.MouseButton1Click:Connect(function() ang = 0 end)
+    library:create("UIListLayout", {
+        Parent = col, FillDirection = Enum.FillDirection.Vertical, Padding = dim(0, 4),
+    })
+    local rotBtn = library:create("TextButton", {
+        Parent = col, Size = dim2(1, 0, 0, 22), BackgroundColor3 = themes.preset.accent,
+        Text = "Auto Rotate  ON", FontFace = fonts.font, TextSize = 12,
+        TextColor3 = rgb(18,18,22), BorderSizePixel = 0, AutoButtonColor = false,
+    })
+    library:create("UICorner", { Parent = rotBtn, CornerRadius = dim(0, 5) })
+    rotBtn.MouseButton1Click:Connect(function()
+        rot = not rot
+        rotBtn.Text = rot and "Auto Rotate  ON" or "Auto Rotate  OFF"
+        rotBtn.BackgroundColor3 = rot and themes.preset.accent or themes.preset.light
+        rotBtn.TextColor3 = rot and rgb(18,18,22) or themes.preset.text
+    end)
+    local relBtn = library:create("TextButton", {
+        Parent = col, Size = dim2(1, 0, 0, 22), BackgroundColor3 = themes.preset.light,
+        Text = "Reload Preview", FontFace = fonts.font, TextSize = 12,
+        TextColor3 = themes.preset.text, BorderSizePixel = 0, AutoButtonColor = false,
+    })
+    library:create("UICorner", { Parent = relBtn, CornerRadius = dim(0, 5) })
+    relBtn.MouseButton1Click:Connect(function()
+        dummy = loadClone()
+        ang = 0
+    end)
     return hold
 end
-
 
 getgenv().Chromatik = library
 getgenv().Aether = library
