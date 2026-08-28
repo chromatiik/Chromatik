@@ -1302,7 +1302,6 @@ function library:window(properties)
         end
         local th = library.selected_tab and library.selected_tab[4]
         if th and th:IsA("ScrollingFrame") and (inside(th) or (inside(items["main"]) and not inside(items["side_frame"]))) then
-            pcall(library.RefreshPageScroll)
             aimScroll(th, delta)
         end
     end)
@@ -1912,12 +1911,33 @@ function library.RefreshPageScroll()
             if bottom > maxBottom then maxBottom = bottom end
         end
     end
-    local neededHeight = maxBottom > 0 and (maxBottom - th.AbsolutePosition.Y) or 0
+    local neededHeight = 0
+    for _, col in ipairs(library._columns or {}) do
+        if col and col.Parent and col:IsDescendantOf(th) then
+            local h = 0
+            local lay = col:FindFirstChildWhichIsA("UIListLayout")
+            if lay then
+                h = lay.AbsoluteContentSize.Y + 24
+            else
+                for _, ch in ipairs(col:GetChildren()) do
+                    if ch:IsA("GuiObject") and ch.AbsoluteSize.Y > 8 then
+                        h = h + ch.AbsoluteSize.Y + 8
+                    end
+                end
+            end
+            if h > neededHeight then neededHeight = h end
+        end
+    end
 
+    local keep = th.CanvasPosition
     th.AutomaticCanvasSize = Enum.AutomaticSize.None
     th.ScrollingEnabled = true
     th.Active = true
-    th.CanvasSize = dim2(0, 0, 0, math.max(neededHeight + 16, 1))
+    th.CanvasSize = dim2(0, 0, 0, math.max(neededHeight + 16, th.AbsoluteSize.Y))
+    th.CanvasPosition = keep
+    if library._scrollAim then
+        library._scrollAim[th] = keep.Y
+    end
 end
 
 function library.SnapSection(outline, mx, my)
