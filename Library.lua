@@ -1941,10 +1941,10 @@ function library:section(properties)
             end)
             library:connection(uis.InputChanged, function(input)
                 if not dragging or input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+                local loc = uis:GetMouseLocation()
                 local gx = items["outline"]:GetAttribute("GrabX") or 0
                 local gy = items["outline"]:GetAttribute("GrabY") or 0
-                items["outline"].Position = dim2(0, input.Position.X - gx, 0, input.Position.Y - gy)
-                start = input.Position
+                items["outline"].Position = dim2(0, loc.X - gx, 0, loc.Y - gy)
                 -- live snap highlight
                 pcall(function()
                     local mx, my = input.Position.X, input.Position.Y
