@@ -639,6 +639,46 @@ function library:ListConfigs()
     return Result
 end
 
+
+function library.SnapSection(outline, mx, my)
+    if not outline then return false end
+    local drop, best = nil, 1e18
+    local main = library._windowMain
+    for _, col in ipairs(library._columns or {}) do
+        if col and col.Parent and col.AbsoluteSize.X > 40 then
+            if not main or col:IsDescendantOf(main) then
+            local p, s = col.AbsolutePosition, col.AbsoluteSize
+            if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
+                local area = s.X * s.Y
+                if area < best then
+                    best = area
+                    drop = col
+                end
+            end
+            end
+        end
+    end
+    if not drop then
+        return false
+    end
+    local order = 0
+    for _, sib in ipairs(drop:GetChildren()) do
+        if sib:IsA("Frame") and sib ~= outline then
+            if (sib.AbsolutePosition.Y + sib.AbsoluteSize.Y * 0.5) < my then
+                order = math.max(order, (tonumber(sib.LayoutOrder) or 0) + 1)
+            end
+        end
+    end
+    outline.Parent = drop
+    outline.LayoutOrder = order
+    outline.AnchorPoint = vec2(0, 0)
+    local h = outline.AbsoluteSize.Y
+    if h < 80 then h = 160 end
+    outline.Size = dim2(1, 0, 0, h)
+    outline.Position = dim2(0, 0, 0, 0)
+    return true
+end
+
 function library:window(properties)
     local cfg = {
         suffix = properties.suffix or properties.Suffix or "",
@@ -792,7 +832,13 @@ function library:window(properties)
             ImageColor3 = themes.preset.dimtext, ZIndex = 9, BorderSizePixel = 0,
         })
         pcall(function() ApplyIcon(sicon, "search") end)
-        items["search_btn"].Text = "Search"
+        items["search_btn"].Text = ""
+        local slbl = library:create("TextLabel", {
+            Parent = items["search_btn"], Text = "Search", FontFace = fonts.font, TextSize = 14,
+            TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
+            Position = dim2(0, 28, 0, 0), Size = dim2(1, -32, 1, 0),
+            TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 9,
+        })
         items["search_btn"].MouseButton1Click:Connect(function()
             if library.OpenSearch then library.OpenSearch() end
         end)
@@ -1334,7 +1380,7 @@ function library:tab(properties)
         })
 
         for _, section in cfg.tabs do
-            local data = { items = {} }
+            local data = { items = {}, _emblemTab = cfg }
             local multi_items = data.items
 
             multi_items["button"] = library:create("TextButton", {
@@ -1547,6 +1593,10 @@ function library:tab(properties)
         cfg.open_tab(true)
     end
 
+    library._tabs = library._tabs or {}
+    table.insert(library._tabs, cfg)
+    library._buildingTab = cfg
+
     return unpack(cfg.pages)
 end
 
@@ -1574,17 +1624,13 @@ function library:seperator(properties)
         PaddingRight = dim(0, 5),
         PaddingLeft = dim(0, 5),
     })
-        library._buildingTab = cfg
-    library._tabs = library._tabs or {}
-    table.insert(library._tabs, cfg)
     return setmetatable(cfg, library)
 end
 
 function library:column(properties)
     properties = properties or {}
-    if self and self.open_tab then
-        library._buildingTab = self
-    end
+    library._buildingTab = self._emblemTab or (self.open_tab and self) or library._buildingTab
+
 
     local sub = properties.tab or properties.Tab
     local parent_frame = nil
@@ -1744,36 +1790,7 @@ function library:section(properties)
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = false
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
-                local mx, my = input.Position.X, input.Position.Y
-                local dropCol
-                local best = -1
-                for _, col in ipairs(library._columns or {}) do
-                    if col and col.Parent then
-                        local p, s = col.AbsolutePosition, col.AbsoluteSize
-                        if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
-                            local area = s.X * s.Y
-                            if area > best then
-                                best = area
-                                dropCol = col
-                            end
-                        end
-                    end
-                end
-                if dropCol then
-                    -- order among siblings by drop Y
-                    local order = 0
-                    for _, sib in ipairs(dropCol:GetChildren()) do
-                        if sib:IsA("Frame") and sib ~= items["outline"] then
-                            if sib.AbsolutePosition.Y + sib.AbsoluteSize.Y * 0.5 < my then
-                                order = math.max(order, (sib.LayoutOrder or 0) + 1)
-                            end
-                        end
-                    end
-                    items["outline"].Parent = dropCol
-                    items["outline"].LayoutOrder = order
-                    items["outline"].Size = dim2(1, 0, 0, math.max(120, items["outline"].AbsoluteSize.Y))
-                    items["outline"].Position = dim2(0, 0, 0, 0)
-                end
+                library.SnapSection(items["outline"], input.Position.X, input.Position.Y)
                 -- else stays floating on _floatGui outside the menu
             end)
         end
@@ -1882,34 +1899,7 @@ function library:section(properties)
                 if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = false
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
-                local mx, my = input.Position.X, input.Position.Y
-                local drop, best = nil, 1e18
-                for _, col in ipairs(library._columns or {}) do
-                    if col and col.Parent and col.Visible and col.AbsoluteSize.X > 20 then
-                        local p, s = col.AbsolutePosition, col.AbsoluteSize
-                        if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
-                            local area = s.X * s.Y
-                            if area < best then
-                                best = area
-                                drop = col
-                            end
-                        end
-                    end
-                end
-                if drop then
-                    local order = 0
-                    for _, sib in ipairs(drop:GetChildren()) do
-                        if sib:IsA("Frame") and sib ~= items["outline"] then
-                            if (sib.AbsolutePosition.Y + sib.AbsoluteSize.Y * 0.5) < my then
-                                order = math.max(order, (tonumber(sib.LayoutOrder) or 0) + 1)
-                            end
-                        end
-                    end
-                    items["outline"].Parent = drop
-                    items["outline"].LayoutOrder = order
-                    items["outline"].Size = dim2(1, 0, 0, math.max(items["outline"].AbsoluteSize.Y, 80))
-                    items["outline"].Position = dim2(0, 0, 0, 0)
-                end
+                library.SnapSection(items["outline"], input.Position.X, input.Position.Y)
             end)
         end
 
@@ -6657,7 +6647,13 @@ function library.OpenSearch()
                     end
                 end
                 pcall(function()
-                    if use and use.open_tab then use.open_tab() end
+                    if use and use.open_tab then
+                        use.open_tab()
+                    end
+                    local btn = use and use.items and use.items["button"]
+                    if btn then
+                        firesignal(btn.MouseButton1Down, { UserInputType = Enum.UserInputType.MouseButton1 })
+                    end
                 end)
                 task.delay(0.15, function() reveal(inst) end)
             end)
