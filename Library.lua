@@ -1671,6 +1671,8 @@ function library:column(properties)
     properties = properties or {}
     library._buildingTab = self._emblemTab or (self.open_tab and self) or library._buildingTab
     library._buildingPage = (self.open_page and self) or library._buildingPage
+    -- keep on this column so sections inherit
+
 
 
     local sub = properties.tab or properties.Tab
@@ -1749,6 +1751,8 @@ function library:sub_tab(properties)
     })
     library._columns = library._columns or {}
     table.insert(library._columns, items["column"])
+    cfg._emblemTab = library._buildingTab
+    cfg._emblemPage = library._buildingPage
     return setmetatable(cfg, library)
 end
 
@@ -1785,7 +1789,7 @@ function library:section(properties)
                 library._tabByName = library._tabByName or {}
                 library._tabByName[tb.name or "?"] = tb
             end
-            table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = tb, tabName = tb and tb.name, page = library._buildingPage })
+            table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = (self._emblemTab or tb), tabName = tb and tb.name, page = self._emblemPage or library._buildingPage })
         end
         -- drag from header; can leave the menu
         do
@@ -4109,6 +4113,7 @@ function library:init_config(window)
     themeSec:keybind({
         name = "Menu Bind", flag = "menu_bind",
         key = library.MenuKeybind or Enum.KeyCode.RightControl, mode = "Toggle",
+        no_listen = true,
         callback = function()
             -- visibility is handled by the global MenuKeybind listener
         end,
