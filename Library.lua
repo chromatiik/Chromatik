@@ -281,18 +281,6 @@ local function ApplyIcon(Object, Icon)
 end
 
 function library.LoadEmblemLogo()
-    if library._logoAsset then return library._logoAsset end
-    pcall(function()
-        local data = game:HttpGet("https://raw.githubusercontent.com/chromatiik/emblem/main/public/emblem.png")
-        if type(data) == "string" and #data > 80 then
-            pcall(function()
-                if makefolder then makefolder("Emblem") end
-                writefile("Emblem/logo.png", data)
-            end)
-            local ok, id = pcall(function() return getcustomasset("Emblem/logo.png") end)
-            if ok and id then library._logoAsset = id end
-        end
-    end)
     return library._logoAsset
 end
 
@@ -920,6 +908,11 @@ function library:window(properties)
             if ok and content then items["profile_avatar"].Image = content end
         end)
         pcall(function() items["profile_avatar"].Visible = false end)
+        pcall(function()
+            items["profile_btn"].MouseButton1Click:Connect(function()
+                cfg.toggle_menu(not library["items"].Enabled)
+            end)
+        end)
 
         local profileOpen = false
         local profilePopup = library:create("Frame", {
@@ -1312,7 +1305,8 @@ function library:window(properties)
         if library._sectionDragging then return end
         if library._menuKeyDown then return end
         library._menuKeyDown = true
-        cfg.toggle_menu(not library["items"].Enabled)
+        local on = not (library["items"] and library["items"].Enabled)
+        cfg.toggle_menu(on)
     end)
     library:connection(uis.InputEnded, function(input)
         if input.KeyCode == library.MenuKeybind or (type(library.MenuKeybind) == "string" and tostring(input.KeyCode):find(library.MenuKeybind, 1, true)) then
