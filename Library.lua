@@ -280,6 +280,22 @@ local function ApplyIcon(Object, Icon)
     Object.Image = Image
 end
 
+function library.LoadEmblemLogo()
+    if library._logoAsset then return library._logoAsset end
+    pcall(function()
+        local data = game:HttpGet("https://raw.githubusercontent.com/chromatiik/emblem/main/public/emblem.png")
+        if type(data) == "string" and #data > 80 then
+            pcall(function()
+                if makefolder then makefolder("Emblem") end
+                writefile("Emblem/logo.png", data)
+            end)
+            local ok, id = pcall(function() return getcustomasset("Emblem/logo.png") end)
+            if ok and id then library._logoAsset = id end
+        end
+    end)
+    return library._logoAsset
+end
+
 function library:tween(obj, properties, easing_style, time)
     local tween = tween_service:Create(
         obj,
@@ -806,7 +822,15 @@ function library:window(properties)
             ImageColor3 = themes.preset.text,
             ZIndex = 6,
         })
-        pcall(function() ApplyIcon(items["title"], properties.icon or properties.Icon or "layers") end)
+        pcall(function()
+            local logo = library.LoadEmblemLogo and library.LoadEmblemLogo()
+            if logo then
+                items["title"].Image = logo
+                items["title"].ImageColor3 = rgb(255,255,255)
+            else
+                ApplyIcon(items["title"], properties.icon or properties.Icon or "layers")
+            end
+        end)
         items["search_btn"] = library:create("TextButton", {
             Parent = items["side_frame"],
             Name = "\0",
@@ -1274,8 +1298,13 @@ function library:window(properties)
     library:connection(uis.InputBegan, function(input)
         if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if library._rebindingMenu then return end
-        if input.KeyCode ~= library.MenuKeybind then return end
-        if tick() - (library._menuFlipAt or 0) < 0.25 then return end
+        local bind = library.MenuKeybind
+        local match = (input.KeyCode == bind)
+        if not match and type(bind) == "string" then
+            match = bind:find(input.KeyCode.Name, 1, true) ~= nil
+        end
+        if not match then return end
+        if tick() - (library._menuFlipAt or 0) < 0.2 then return end
         library._menuFlipAt = tick()
         cfg.toggle_menu(not library["items"].Enabled)
     end)
@@ -1642,6 +1671,7 @@ end
 function library:column(properties)
     properties = properties or {}
     library._buildingTab = self._emblemTab or (self.open_tab and self) or library._buildingTab
+    library._buildingPage = (self.open_page and self) or library._buildingPage
 
 
     local sub = properties.tab or properties.Tab
@@ -1756,7 +1786,7 @@ function library:section(properties)
                 library._tabByName = library._tabByName or {}
                 library._tabByName[tb.name or "?"] = tb
             end
-            table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = tb, tabName = tb and tb.name })
+            table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = tb, tabName = tb and tb.name, page = library._buildingPage })
         end
         -- drag from header; can leave the menu
         do
@@ -1894,9 +1924,13 @@ function library:section(properties)
                 dragging = true
                 start = input.Position
                 local abs, sz = items["outline"].AbsolutePosition, items["outline"].AbsoluteSize
+                local grabX = input.Position.X - abs.X
+                local grabY = input.Position.Y - abs.Y
+                items["outline"]:SetAttribute("GrabX", grabX)
+                items["outline"]:SetAttribute("GrabY", grabY)
                 items["outline"].Parent = library._floatGui
                 items["outline"].Size = dim2(0, sz.X, 0, sz.Y)
-                items["outline"].Position = dim2(0, abs.X, 0, abs.Y)
+                items["outline"].Position = dim2(0, input.Position.X - grabX, 0, input.Position.Y - grabY)
                 if home then
                     ghost = library:create("Frame", {
                         Parent = home, Size = dim2(1, 0, 0, sz.Y),
@@ -1907,9 +1941,32 @@ function library:section(properties)
             end)
             library:connection(uis.InputChanged, function(input)
                 if not dragging or input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-                local pos = items["outline"].Position
-                items["outline"].Position = dim2(0, pos.X.Offset + (input.Position.X - start.X), 0, pos.Y.Offset + (input.Position.Y - start.Y))
+                local gx = items["outline"]:GetAttribute("GrabX") or 0
+                local gy = items["outline"]:GetAttribute("GrabY") or 0
+                items["outline"].Position = dim2(0, input.Position.X - gx, 0, input.Position.Y - gy)
                 start = input.Position
+                -- live snap highlight
+                pcall(function()
+                    local mx, my = input.Position.X, input.Position.Y
+                    local best, slot = 1e18, nil
+                    for _, col in ipairs(library._columns or {}) do
+                        if col and col.Parent and library._windowMain and col:IsDescendantOf(library._windowMain) then
+                            local p, s = col.AbsolutePosition, col.AbsoluteSize
+                            local cx, cy = p.X + s.X*0.5, p.Y + 20
+                            local d = (cx-mx)^2 + (cy-my)^2
+                            if d < best then best, slot = d, col end
+                        end
+                    end
+                    if ghost and ghost.Parent then ghost:Destroy() end
+                    if slot then
+                        ghost = library:create("Frame", {
+                            Parent = slot, Size = dim2(1, 0, 0, items["outline"].AbsoluteSize.Y),
+                            BackgroundColor3 = rgb(90,90,100), BackgroundTransparency = 0.35, BorderSizePixel = 0,
+                            ZIndex = 8,
+                        })
+                        library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
+                    end
+                end)
             end)
             library:connection(uis.InputEnded, function(input)
                 if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
@@ -4848,7 +4905,11 @@ function library:Watermark(params)
         ScaleType = Enum.ScaleType.Fit,
     })
     iconLabel.LayoutOrder = NextOrder()
-    ApplyIcon(iconLabel, Icon)
+    do
+        local logo = library.LoadEmblemLogo and library.LoadEmblemLogo()
+        if logo then iconLabel.Image = logo iconLabel.ImageColor3 = rgb(255,255,255)
+        else ApplyIcon(iconLabel, Icon) end
+    end
 
     local function Separator()
         local Sep = library:create("Frame", {
@@ -6663,11 +6724,16 @@ function library.OpenSearch()
                     end
                 end
                 pcall(function()
-                    if use and use.items and use.items["button"] then
-                        pcall(use.open_tab)
-                    elseif use and use.open_tab then
-                        use.open_tab()
+                    local page
+                    for _, item in ipairs(library._searchIndex or {}) do
+                        if item.inst == inst then
+                            if item.tab then use = item.tab end
+                            page = item.page
+                            break
+                        end
                     end
+                    if use and use.open_tab then use.open_tab() end
+                    if page and page.open_page then page.open_page() end
                 end)
                 task.spawn(function()
                     for _ = 1, 12 do
