@@ -1295,7 +1295,7 @@ function library:tab(properties)
 
     local items = cfg.items
     do
-        items["tab_holder"] = library:create("Frame", {
+        items["tab_holder"] = library:create("ScrollingFrame", {
             Parent = library.cache,
             Name = "\0",
             Visible = false,
@@ -1305,6 +1305,11 @@ function library:tab(properties)
             Size = dim2(1, -208, 1, -64),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            CanvasSize = dim2(0, 0, 0, 0),
+            ScrollBarThickness = 4,
+            ScrollBarImageColor3 = rgb(60,60,66),
+            Active = true,
         })
 
         items["button"] = library:create("TextButton", {
@@ -1773,11 +1778,11 @@ function library._updateGhost(col, height)
     end
     library._snapGhost.Parent = parent
     local ap, asz = col.AbsolutePosition, col.AbsoluteSize
-    local yOff = 6
+    local yOff = 4
     for _, ch in ipairs(col:GetChildren()) do
-        if ch:IsA("GuiObject") and ch.Visible and ch.Name ~= "UIListLayout" and ch.Name ~= "UIPadding" then
-            local rel = (ch.AbsolutePosition.Y - ap.Y) + ch.AbsoluteSize.Y + 6
-            if rel > yOff then yOff = rel end
+        if ch:IsA("Frame") and ch.Visible and ch.AbsoluteSize.Y > 24 and ch.AbsoluteSize.Y < 800 then
+            local rel = (ch.AbsolutePosition.Y - ap.Y) + ch.AbsoluteSize.Y + 7
+            if rel > yOff and rel < asz.Y then yOff = rel end
         end
     end
     local h = math.clamp(height or 120, 50, math.max(50, asz.Y - yOff - 6))
@@ -1803,8 +1808,7 @@ function library.SnapSection(outline, mx, my)
     if best then
         outline.Parent = best
         local sy = tonumber(outline:GetAttribute("ScaleY")) or 0.5
-        sy = math.clamp(sy, 0.28, 0.62)
-        outline.Size = dim2(1, 0, sy, -6)
+        outline.Size = dim2(1, 0, sy, -3)
         outline.Position = dim2(0, 0, 0, 0)
         library._lastColumn = best
     else
@@ -1858,7 +1862,7 @@ function library.OpenSearch()
     local input = library:create("TextBox", {
         Parent = box, Position = dim2(0, 16, 0, 40), Size = dim2(1, -32, 0, 32),
         BackgroundColor3 = rgb(16,16,18), BorderSizePixel = 0, FontFace = fonts.font,
-        Text = "", PlaceholderText = "Search", TextColor3 = rgb(255,255,255),
+        Text = "", PlaceholderText = "Search sections and elements", TextColor3 = rgb(255,255,255),
         TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 402,
     })
     library:create("UICorner", { Parent = input, CornerRadius = dim(0, 7) })
@@ -1877,6 +1881,7 @@ function library.OpenSearch()
     local function render(q)
         for _, c in ipairs(list:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
         q = tostring(q or ""):lower()
+        if q == "" then return end
         local n = 0
         for _, item in ipairs(library._searchIndex) do
             if n >= 50 then break end
@@ -1921,6 +1926,14 @@ function library.OpenSearch()
     input:GetPropertyChangedSignal("Text"):Connect(function() render(input.Text) end)
     dimmer.MouseButton1Click:Connect(function() pcall(function() gui:Destroy() end) end)
     close.MouseButton1Click:Connect(function() pcall(function() gui:Destroy() end) end)
+    local empty = library:create("TextLabel", {
+        Parent = box, BackgroundTransparency = 1, Position = dim2(0, 0, 0, 140),
+        Size = dim2(1, 0, 0, 20), FontFace = fonts.font, Text = "Start typing to search",
+        TextSize = 14, TextColor3 = themes.preset.dimtext, ZIndex = 402,
+    })
+    input:GetPropertyChangedSignal("Text"):Connect(function()
+        empty.Visible = input.Text == ""
+    end)
     render("")
     task.defer(function() input:CaptureFocus() end)
 end
@@ -1930,7 +1943,7 @@ function library:section(properties)
         name = properties.name or properties.Name or "section",
         side = properties.side or properties.Side or "left",
         default = properties.default or properties.Default or false,
-        size = math.clamp(properties.size or properties.Size or self.size or 0.5, 0.22, 0.62),
+        size = properties.size or properties.Size or self.size or 0.5,
         icon = properties.icon or properties.Icon or "box",
         fading_toggle = properties.fading or properties.Fading or false,
         items = {},
@@ -4985,14 +4998,14 @@ function library:Watermark(params)
         return Label
     end
 
+    local NameStat = Stat("Emblem")
+    NameStat.TextColor3 = rgb(255, 255, 255)
     Separator()
     local GameStat = Stat("...")
     Separator()
+    local UserStat = Stat((players.LocalPlayer and players.LocalPlayer.Name) or "Player")
+    Separator()
     local FpsStat = Stat("0 fps")
-    Separator()
-    local PingStat = Stat("0 ms")
-    Separator()
-    local TimeStat = Stat(os.date("%I:%M %p"))
 
     task.spawn(function()
         local Ok, Info = pcall(function()
@@ -5013,14 +5026,6 @@ function library:Watermark(params)
             end
             FpsStat.Text = tostring(Frames * 2) .. " fps"
             Frames = 0
-
-            local Ping = 0
-            pcall(function()
-                local Stat = stats.Network.ServerStatsItem["Data Ping"]
-                Ping = floor(Stat:GetValue())
-            end)
-            PingStat.Text = tostring(Ping) .. " ms"
-            TimeStat.Text = os.date("%I:%M %p")
         end
     end)
 
