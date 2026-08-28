@@ -1473,7 +1473,8 @@ function library:tab(properties)
                 BackgroundTransparency = 1,
                 Name = "\0",
                 BorderColor3 = rgb(0, 0, 0),
-                Size = dim2(1, -20, 1, -20),
+                Size = dim2(1, -20, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
                 BorderSizePixel = 0,
                 Visible = false,
                 BackgroundColor3 = rgb(255, 255, 255),
@@ -1506,7 +1507,8 @@ function library:tab(properties)
                 Parent = multi_items["tab"],
                 BackgroundTransparency = 1,
                 Name = "\0",
-                Size = dim2(1, 0, 1, 0),
+                Size = dim2(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
                 BorderColor3 = rgb(0, 0, 0),
                 BorderSizePixel = 0,
                 Visible = true,
@@ -1741,7 +1743,7 @@ function library._visibleColumns()
         if col and col.Parent and col.Visible ~= false and col.AbsoluteSize.X > 50 and col.AbsoluteSize.Y > 40 then
             if (not main) or col:IsDescendantOf(main) then
                 -- skip columns that are off-screen / cached
-                if col.AbsolutePosition.Y > 0 and col.AbsoluteSize.Y < 2000 then
+                if col.AbsoluteSize.X >= 120 and col.AbsoluteSize.X <= 420 then
                     table.insert(out, col)
                 end
             end
@@ -1768,7 +1770,7 @@ function library._updateGhost(col, height)
         if library._snapGhost then library._snapGhost.Visible = false end
         return
     end
-    local parent = library._floatGui or library["items"]
+    local parent = library["items"]
     if not library._snapGhost or not library._snapGhost.Parent then
         library._snapGhost = library:create("Frame", {
             Parent = parent,
@@ -1779,7 +1781,7 @@ function library._updateGhost(col, height)
         })
         library:create("UICorner", { Parent = library._snapGhost, CornerRadius = dim(0, 7) })
     end
-    library._snapGhost.Parent = parent
+    library._snapGhost.Parent = library["items"]
     local ap, asz = col.AbsolutePosition, col.AbsoluteSize
     local yOff = 4
     for _, ch in ipairs(col:GetChildren()) do
@@ -1812,22 +1814,41 @@ function library.RefreshPageScroll()
     end
     if not (th and th:IsA("ScrollingFrame")) then return end
     local maxH = 0
-    for _, col in ipairs(th:GetChildren()) do
-        if col:IsA("GuiObject") and col.Visible then
+    local function bump(h)
+        if h and h > maxH then maxH = h end
+    end
+    for _, page in ipairs(th:GetChildren()) do
+        if page:IsA("GuiObject") and page.Visible then
+            bump(page.AbsoluteSize.Y)
+            for _, col in ipairs(page:GetDescendants()) do
+                if col:IsA("Frame") and col.Parent and col.Parent:IsA("Frame") then
+                    local h = 0
+                    for _, ch in ipairs(col:GetChildren()) do
+                        if ch:IsA("Frame") and ch.AbsoluteSize.Y > 20 then
+                            h = h + ch.AbsoluteSize.Y + 8
+                        end
+                    end
+                    bump(h)
+                    bump(col.AbsoluteSize.Y)
+                end
+            end
+        end
+    end
+    for _, col in ipairs(library._columns or {}) do
+        if col and col.Parent and th and col:IsDescendantOf(th) then
             local h = 0
             for _, ch in ipairs(col:GetChildren()) do
-                if ch:IsA("GuiObject") and ch.AbsoluteSize.Y > 8 then
+                if ch:IsA("Frame") and ch.AbsoluteSize.Y > 20 then
                     h = h + ch.AbsoluteSize.Y + 8
                 end
             end
-            if col.AbsoluteSize.Y > h then h = col.AbsoluteSize.Y end
-            if h > maxH then maxH = h end
+            bump(h)
         end
     end
     th.AutomaticCanvasSize = Enum.AutomaticSize.None
-    th.CanvasSize = dim2(0, 0, 0, math.max(maxH + 24, th.AbsoluteSize.Y))
     th.ScrollingEnabled = true
     th.Active = true
+    th.CanvasSize = dim2(0, 0, 0, math.max(maxH + 32, 1))
 end
 
 function library.SnapSection(outline, mx, my)
