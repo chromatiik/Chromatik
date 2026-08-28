@@ -694,7 +694,7 @@ function library:window(properties)
             BackgroundTransparency = 1,
             Name = "\0",
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 196, 1, 0),
+            Size = dim2(0, 196, 1, -25),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
         })
@@ -735,36 +735,21 @@ function library:window(properties)
             PaddingLeft = dim(0, 10),
         })
 
-        items["title"] = library:create("ImageLabel", {
-            Parent = items["side_frame"],
-            Name = "\0",
-            BackgroundTransparency = 1,
-            Size = dim2(0, 28, 0, 28),
-            Position = dim2(0, 16, 0, 16),
-            BorderSizePixel = 0,
-            ImageColor3 = themes.preset.text,
-            ZIndex = 6,
-        })
-        pcall(function() ApplyIcon(items["title"], properties.icon or properties.Icon or "layers") end)
-        items["search_btn"] = library:create("TextButton", {
-            Parent = items["side_frame"],
-            Name = "\0",
-            Text = "  Search...",
-            TextColor3 = themes.preset.dimtext,
-            TextSize = 13,
+        items["title"] = library:create("TextLabel", {
             FontFace = fonts.font,
-            AutoButtonColor = false,
-            BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 12, 0, 52),
-            Size = dim2(1, -24, 0, 28),
+            BorderColor3 = rgb(0, 0, 0),
+            Parent = items["side_frame"],
+            Name = "\0",
+            Text = string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', cfg.name, cfg.suffix),
+            BackgroundTransparency = 1,
+            Size = dim2(1, 0, 0, 70),
+            TextColor3 = themes.preset.accent,
             BorderSizePixel = 0,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            ZIndex = 6,
+            RichText = true,
+            TextSize = 30,
+            BackgroundColor3 = rgb(255, 255, 255),
         })
-        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
-        items["search_btn"].MouseButton1Click:Connect(function()
-            if library.OpenSearch then library.OpenSearch() end
-        end)
+        library:apply_theme(items["title"], "accent", "TextColor3")
 
         items["multi_holder"] = library:create("Frame", {
             Parent = items["main"],
@@ -993,7 +978,6 @@ function library:window(properties)
             Size = dim2(1, 0, 0, 25),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(23, 23, 25),
-            Visible = false,
         })
 
         library:create("UICorner", {
@@ -1956,22 +1940,22 @@ function library:slider(options)
         BackgroundColor3 = rgb(255, 255, 255),
     })
 
-    items["value"] = library:create("TextBox", {
+    items["value"] = library:create("TextLabel", {
         FontFace = fonts.font,
-        TextColor3 = themes.preset.text,
-        Text = tostring(cfg.default),
+        TextColor3 = themes.preset.dimtext,
+        BorderColor3 = rgb(0, 0, 0),
+        Text = tostring(cfg.default) .. cfg.suffix,
         Parent = items["slider"],
         Name = "\0",
-        Size = dim2(0, 52, 0, 18),
-        Position = dim2(1, -57, 0, 0),
-        BackgroundColor3 = themes.preset.element,
-        TextXAlignment = Enum.TextXAlignment.Center,
+        Size = dim2(0, 60, 0, 18),
+        Position = dim2(1, -65, 0, 0),
+        BackgroundTransparency = 1,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         BorderSizePixel = 0,
-        TextSize = 13,
-        ClearTextOnFocus = false,
-        ZIndex = 5,
+        TextSize = 14,
+        BackgroundColor3 = rgb(255, 255, 255),
     })
-    library:create("UICorner", { Parent = items["value"], CornerRadius = dim(0, 4) })
 
     items["track"] = library:create("Frame", {
         Parent = items["slider"],
@@ -4549,7 +4533,7 @@ function library:Watermark(params)
         Parent = library["watermark_gui"],
         AnchorPoint = vec2(0.5, 0),
         Position = dim2(0.5, 0, 0, 14),
-        Size = dim2(0, 0, 0, 40),
+        Size = dim2(0, 0, 0, 32),
         BackgroundColor3 = themes.preset.section,
         BorderSizePixel = 0,
         ZIndex = 60,
@@ -4622,13 +4606,14 @@ function library:Watermark(params)
         return Label
     end
 
-    local NameStat = Stat(params.Name or library.author or "Emblem")
     Separator()
     local GameStat = Stat("...")
     Separator()
-    local UserStat = Stat(lp.Name)
-    Separator()
     local FpsStat = Stat("0 fps")
+    Separator()
+    local PingStat = Stat("0 ms")
+    Separator()
+    local TimeStat = Stat(os.date("%I:%M %p"))
 
     task.spawn(function()
         local Ok, Info = pcall(function()
@@ -4648,7 +4633,6 @@ function library:Watermark(params)
                 break
             end
             FpsStat.Text = tostring(Frames * 2) .. " fps"
-            if UserStat then UserStat.Text = lp.DisplayName or lp.Name end
             Frames = 0
 
             local Ping = 0
@@ -5582,35 +5566,6 @@ function library:EspPreview(options)
     end
 
 
-    
-    local function makeDefaultCharacter()
-        local model = Instance.new("Model")
-        model.Name = "Dummy"
-        local function part(name, size, cf)
-            local p = Instance.new("Part")
-            p.Name = name
-            p.Size = size
-            p.Anchored = true
-            p.CanCollide = false
-            p.Color = Color3.fromRGB(163, 162, 165)
-            p.Material = Enum.Material.SmoothPlastic
-            p.CFrame = cf
-            p.Parent = model
-            return p
-        end
-        local root = part("HumanoidRootPart", Vector3.new(2,2,1), CFrame.new(0, 2, 0))
-        model.PrimaryPart = root
-        part("Head", Vector3.new(1.2,1.2,1.2), CFrame.new(0, 3.5, 0))
-        part("Torso", Vector3.new(2,2,1), CFrame.new(0, 2.2, 0))
-        part("Left Arm", Vector3.new(1,2,1), CFrame.new(-1.5, 2.2, 0))
-        part("Right Arm", Vector3.new(1,2,1), CFrame.new(1.5, 2.2, 0))
-        part("Left Leg", Vector3.new(1,2,1), CFrame.new(-0.5, 0.2, 0))
-        part("Right Leg", Vector3.new(1,2,1), CFrame.new(0.5, 0.2, 0))
-        local hum = Instance.new("Humanoid")
-        hum.Parent = model
-        return model
-    end
-
     local function rebuildClone(force)
         if state.destroyed or not state.open then return end
         local now = tick()
@@ -5618,21 +5573,17 @@ function library:EspPreview(options)
 
         local src = nil
         local tempDefault = nil
-        -- default dummy (no live animations) unless missing
-        if type(makeDefaultCharacter) == "function" then
-            pcall(function()
-                tempDefault = makeDefaultCharacter()
-                src = tempDefault
-            end)
-        end
+        pcall(function()
+            local plr = getPlayer()
+            if plr and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+                src = plr.Character
+            end
+        end)
         if not src then
             pcall(function()
                 if lp.Character then
                     lp.Character.Archivable = true
-                    src = lp.Character:Clone()
-                    for _, a in ipairs(src:GetDescendants()) do
-                        if a:IsA("Animator") or a:IsA("AnimationController") then pcall(function() a:Destroy() end) end
-                    end
+                    src = lp.Character
                 end
             end)
         end
@@ -6262,132 +6213,6 @@ function library:PlayerCard(params)
     end
 
     return api
-end
-
-
-
-
--- Search overlay (Lunaris-style)
-function library.OpenSearch()
-    if library._searchGui and library._searchGui.Parent then
-        library._searchGui.Enabled = true
-        return
-    end
-    local gui = library:create("ScreenGui", {
-        Parent = coregui, Name = "\0", IgnoreGuiInset = true, DisplayOrder = 20000,
-        ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Global,
-    })
-    library._searchGui = gui
-    local dimmer = library:create("TextButton", {
-        Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(0,0,0),
-        BackgroundTransparency = 0.45, Text = "", AutoButtonColor = false, ZIndex = 200,
-    })
-    local panel = library:create("Frame", {
-        Parent = gui, AnchorPoint = vec2(0.5,0.2), Position = dim2(0.5,0,0.18,0),
-        Size = dim2(0, 420, 0, 280), BackgroundColor3 = themes.preset.section,
-        BorderSizePixel = 0, ZIndex = 201,
-    })
-    library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 10) })
-    local box = library:create("TextBox", {
-        Parent = panel, Position = dim2(0, 14, 0, 14), Size = dim2(1, -28, 0, 32),
-        BackgroundColor3 = themes.preset.element, TextColor3 = themes.preset.text,
-        PlaceholderText = "Search", PlaceholderColor3 = themes.preset.dimtext,
-        FontFace = fonts.font, TextSize = 14, Text = "", ClearTextOnFocus = false,
-        BorderSizePixel = 0, ZIndex = 202, TextXAlignment = Enum.TextXAlignment.Left,
-    })
-    library:create("UICorner", { Parent = box, CornerRadius = dim(0, 6) })
-    library:create("UIPadding", { Parent = box, PaddingLeft = dim(0, 10) })
-    local list = library:create("ScrollingFrame", {
-        Parent = panel, Position = dim2(0, 14, 0, 56), Size = dim2(1, -28, 1, -70),
-        BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, ZIndex = 202,
-    })
-    local lay = library:create("UIListLayout", { Parent = list, Padding = dim(0, 4) })
-    local function collect()
-        local found = {}
-        local root = library.items
-        if not root then return found end
-        for _, d in ipairs(root:GetDescendants()) do
-            if d:IsA("TextLabel") or d:IsA("TextButton") then
-                local tx = d.Text or ""
-                if tx ~= "" and #tx < 60 and not tx:find("<") then
-                    table.insert(found, { text = tx, inst = d })
-                end
-            end
-        end
-        return found
-    end
-    local function flash(inst)
-        pcall(function()
-            local old = inst.TextColor3
-            inst.TextColor3 = themes.preset.accent
-            task.delay(1, function()
-                pcall(function() inst.TextColor3 = old end)
-            end)
-        end)
-    end
-    local function refresh()
-        for _, c in ipairs(list:GetChildren()) do
-            if c:IsA("TextButton") then c:Destroy() end
-        end
-        local q = string.lower(box.Text or "")
-        if q == "" then return end
-        local n = 0
-        for _, item in ipairs(collect()) do
-            if string.find(string.lower(item.text), q, 1, true) then
-                n += 1
-                if n > 12 then break end
-                local b = library:create("TextButton", {
-                    Parent = list, Size = dim2(1, 0, 0, 28), BackgroundColor3 = themes.preset.element,
-                    Text = "  " .. item.text, TextColor3 = themes.preset.text, TextSize = 13,
-                    FontFace = fonts.font, AutoButtonColor = false, BorderSizePixel = 0,
-                    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 203,
-                })
-                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
-                b.MouseButton1Click:Connect(function()
-                    gui.Enabled = false
-                    flash(item.inst)
-                end)
-            end
-        end
-    end
-    box:GetPropertyChangedSignal("Text"):Connect(refresh)
-    dimmer.MouseButton1Click:Connect(function() gui.Enabled = false end)
-    box:CaptureFocus()
-end
-
-function library:EnableSnow(on)
-    library._snow = on == true
-    if library._snowPart then pcall(function() library._snowPart:Destroy() end) library._snowPart = nil end
-    if not library._snow then return end
-    local gui = library.items
-    if not gui then return end
-    local holder = library:create("Frame", {
-        Parent = gui, Size = dim2(1,0,1,0), BackgroundTransparency = 1, ZIndex = 2,
-    })
-    library._snowPart = holder
-    for i = 1, 28 do
-        local f = library:create("Frame", {
-            Parent = holder, Size = dim2(0, 3, 0, 3), BackgroundColor3 = rgb(230,230,235),
-            BorderSizePixel = 0, Position = dim2(math.random(), 0, -0.1, 0), BackgroundTransparency = 0.2,
-        })
-        library:create("UICorner", { Parent = f, CornerRadius = dim(1,0) })
-        task.spawn(function()
-            while f.Parent and library._snow do
-                f.Position = dim2(math.random(), 0, -0.05, 0)
-                local dur = 6 + math.random() * 6
-                library:tween(f, { Position = dim2(f.Position.X.Scale, 0, 1.05, 0) }, Enum.EasingStyle.Linear, dur)
-                task.wait(dur)
-            end
-        end)
-    end
-end
-
-function library:DefaultPresets()
-    return {
-        Midnight = { accent = rgb(155,150,219), background = rgb(14,14,16) },
-        Metal = { accent = rgb(200,200,205), background = rgb(12,12,14) },
-        Snow = { accent = rgb(180,210,230), background = rgb(16,18,22) },
-    }
 end
 
 
