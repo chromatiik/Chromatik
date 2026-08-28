@@ -1560,6 +1560,9 @@ function library:seperator(properties)
         PaddingRight = dim(0, 5),
         PaddingLeft = dim(0, 5),
     })
+        library._buildingTab = cfg
+    library._tabs = library._tabs or {}
+    table.insert(library._tabs, cfg)
     return setmetatable(cfg, library)
 end
 
@@ -1670,7 +1673,7 @@ function library:section(properties)
             CornerRadius = dim(0, 7),
         })
         library._searchIndex = library._searchIndex or {}
-        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = self })
+        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = library._buildingTab or self })
         -- drag from header; can leave the menu
         do
             if not library._floatGui then
@@ -1807,6 +1810,62 @@ function library:section(properties)
             TextSize = 16,
             BackgroundColor3 = rgb(19, 19, 21),
         })
+        -- HEADER DRAG (this button ate outline clicks before)
+        do
+            if not library._floatGui then
+                library._floatGui = library:create("ScreenGui", {
+                    Parent = coregui, IgnoreGuiInset = true, ResetOnSpawn = false,
+                    DisplayOrder = 12000, ZIndexBehavior = Enum.ZIndexBehavior.Global, Name = "\0",
+                })
+            end
+            local dragging, start, home, ghost
+            home = self.items and self.items["column"]
+            items["button"].InputBegan:Connect(function(input)
+                if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+                dragging = true
+                start = input.Position
+                local abs, sz = items["outline"].AbsolutePosition, items["outline"].AbsoluteSize
+                items["outline"].Parent = library._floatGui
+                items["outline"].Size = dim2(0, sz.X, 0, sz.Y)
+                items["outline"].Position = dim2(0, abs.X, 0, abs.Y)
+                if home then
+                    ghost = library:create("Frame", {
+                        Parent = home, Size = dim2(1, 0, 0, sz.Y),
+                        BackgroundColor3 = rgb(80,80,88), BackgroundTransparency = 0.4, BorderSizePixel = 0,
+                    })
+                    library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
+                end
+            end)
+            library:connection(uis.InputChanged, function(input)
+                if not dragging or input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+                local pos = items["outline"].Position
+                items["outline"].Position = dim2(0, pos.X.Offset + (input.Position.X - start.X), 0, pos.Y.Offset + (input.Position.Y - start.Y))
+                start = input.Position
+            end)
+            library:connection(uis.InputEnded, function(input)
+                if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+                dragging = false
+                if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
+                local mx, my = input.Position.X, input.Position.Y
+                local drop
+                pcall(function()
+                    for _, d in ipairs(library.items:GetDescendants()) do
+                        if d:IsA("Frame") and d.AbsoluteSize.X > 140 and d.AbsoluteSize.Y > 100 then
+                            local p, s = d.AbsolutePosition, d.AbsoluteSize
+                            if mx >= p.X and mx <= p.X+s.X and my >= p.Y and my <= p.Y+s.Y then
+                                drop = d
+                                break
+                            end
+                        end
+                    end
+                end)
+                if drop then
+                    items["outline"].Parent = drop
+                    items["outline"].Size = dim2(1, 0, cfg.size, -3)
+                    items["outline"].Position = dim2(0, 0, 0, 0)
+                end
+            end)
+        end
 
         library:create("UICorner", {
             Parent = items["button"],
@@ -6597,6 +6656,73 @@ function library:DefaultPresets()
         Metal = { accent = rgb(200,200,205), background = rgb(12,12,14) },
         Snow = { accent = rgb(180,210,230), background = rgb(16,18,22) },
     }
+end
+
+
+
+function library:InlinePreview(parent)
+    parent = parent or (self.items and self.items["elements"])
+    if not parent then return end
+    local hold = library:create("Frame", {
+        Parent = parent, Size = dim2(1, 0, 0, 220), BackgroundColor3 = themes.preset.element,
+        BorderSizePixel = 0,
+    })
+    library:create("UICorner", { Parent = hold, CornerRadius = dim(0, 8) })
+    local vp = Instance.new("ViewportFrame")
+    vp.Size = UDim2.new(1, -8, 1, -36)
+    vp.Position = UDim2.new(0, 4, 0, 4)
+    vp.BackgroundColor3 = themes.preset.background
+    vp.BorderSizePixel = 0
+    vp.Parent = hold
+    library:create("UICorner", { Parent = vp, CornerRadius = dim(0, 6) })
+    local world = Instance.new("WorldModel")
+    world.Parent = vp
+    local cam = Instance.new("Camera")
+    cam.Parent = vp
+    vp.CurrentCamera = cam
+    local dummy = Instance.new("Model")
+    dummy.Name = "Dummy"
+    dummy.Parent = world
+    local function part(n, sz, cf)
+        local p = Instance.new("Part")
+        p.Name = n; p.Size = sz; p.CFrame = cf; p.Anchored = true; p.CanCollide = false
+        p.Color = Color3.fromRGB(170,170,175); p.Material = Enum.Material.SmoothPlastic
+        p.Parent = dummy
+        return p
+    end
+    dummy.PrimaryPart = part("HumanoidRootPart", Vector3.new(2,2,1), CFrame.new(0,2,0))
+    part("Head", Vector3.new(1.1,1.1,1.1), CFrame.new(0,3.4,0))
+    part("Torso", Vector3.new(2,2,1), CFrame.new(0,2.2,0))
+    part("Left Arm", Vector3.new(1,2,1), CFrame.new(-1.5,2.2,0))
+    part("Right Arm", Vector3.new(1,2,1), CFrame.new(1.5,2.2,0))
+    part("Left Leg", Vector3.new(1,2,1), CFrame.new(-0.5,0.2,0))
+    part("Right Leg", Vector3.new(1,2,1), CFrame.new(0.5,0.2,0))
+    cam.CFrame = CFrame.new(0, 2.2, 8) * CFrame.Angles(0, 0, 0)
+    local rot = true
+    local ang = 0
+    library:connection(run.RenderStepped, function(dt)
+        if not hold.Parent or not rot then return end
+        ang = ang + dt * 0.6
+        cam.CFrame = CFrame.new(math.sin(ang)*6, 2.4, math.cos(ang)*6) * CFrame.lookAt(Vector3.new(math.sin(ang)*6, 2.4, math.cos(ang)*6), Vector3.new(0,2.2,0))
+    end)
+    local row = library:create("Frame", {
+        Parent = hold, Position = dim2(0, 4, 1, -30), Size = dim2(1, -8, 0, 26),
+        BackgroundTransparency = 1,
+    })
+    local function mini(text, x)
+        local b = library:create("TextButton", {
+            Parent = row, Text = text, FontFace = fonts.font, TextSize = 12,
+            TextColor3 = themes.preset.text, BackgroundColor3 = themes.preset.light,
+            Position = dim2(0, x, 0, 0), Size = dim2(0, 100, 0, 24), BorderSizePixel = 0, AutoButtonColor = false,
+        })
+        library:create("UICorner", { Parent = b, CornerRadius = dim(0, 5) })
+        return b
+    end
+    local a = mini("Auto Rotate", 0)
+    local r = mini("Reload Preview", 108)
+    a.MouseButton1Click:Connect(function() rot = not rot end)
+    r.MouseButton1Click:Connect(function() ang = 0 end)
+    return hold
 end
 
 
