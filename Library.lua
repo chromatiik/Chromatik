@@ -801,7 +801,7 @@ function library:window(properties)
             BorderSizePixel = 0, ZIndex = 9,
         })
         items["search_btn"].MouseButton1Click:Connect(function()
-            pcall(function() library.OpenSearch() end)
+            library.OpenSearch()
         end)
 
 
@@ -1265,6 +1265,7 @@ function library:window(properties)
         end)
     end
 
+    library._menuMain = items["main"]
     library["items"].Enabled = true
     pcall(function()
         if items["main"] then items["main"].Visible = true end
@@ -1972,12 +1973,25 @@ end
 
 function library.OpenSearch()
     library._searchIndex = library._searchIndex or {}
+    if #library._searchIndex == 0 then
+        for flag, _ in pairs(library.flags or {}) do
+            table.insert(library._searchIndex, { name = tostring(flag), flag = flag })
+        end
+    end
     if library._searchGui and library._searchGui.Parent then
         library._searchGui:Destroy()
     end
     local host = library["items"]
+    local main = library._menuMain
+    if not main and host then
+        pcall(function()
+            for _, ch in ipairs(host:GetChildren()) do
+                if ch:IsA("Frame") and ch.AbsoluteSize.X > 400 then main = ch break end
+            end
+        end)
+    end
     local gui = library:create("Frame", {
-        Parent = host,
+        Parent = main or host,
         Size = dim2(1, 0, 1, 0),
         BackgroundTransparency = 1,
         ZIndex = 400,
@@ -1985,11 +1999,10 @@ function library.OpenSearch()
     library._searchGui = gui
     local dimmer = library:create("TextButton", {
         Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(0,0,0),
-        BackgroundTransparency = 0.35, Text = "", AutoButtonColor = false, ZIndex = 400,
+        BackgroundTransparency = 0.45, Text = "", AutoButtonColor = false, ZIndex = 400,
     })
-    local main = host and host:FindFirstChild("main")
     local box = library:create("Frame", {
-        Parent = main or gui,
+        Parent = gui,
         AnchorPoint = vec2(0.5, 0.5),
         Position = dim2(0.5, 0, 0.5, 0),
         Size = dim2(0, 380, 0, 320),
