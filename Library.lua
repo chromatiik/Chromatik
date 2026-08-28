@@ -839,7 +839,7 @@ function library:window(properties)
             Name = "\0",
             Text = "",
             TextXAlignment = Enum.TextXAlignment.Left,
-            TextColor3 = themes.preset.dimtext,
+            TextColor3 = rgb(255, 255, 255),
             TextSize = 14,
             FontFace = fonts.font,
             AutoButtonColor = false,
@@ -919,6 +919,7 @@ function library:window(properties)
             end)
             if ok and content then items["profile_avatar"].Image = content end
         end)
+        pcall(function() items["profile_avatar"].Visible = false end)
 
         local profileOpen = false
         local profilePopup = library:create("Frame", {
@@ -1301,6 +1302,8 @@ function library:window(properties)
         if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if library._rebindingMenu then return end
         local bind = library.MenuKeybind
+        if type(bind) == "table" then bind = bind.key or bind.Key or bind.KeyCode end
+        if bind == nil then bind = Enum.KeyCode.RightControl end
         local match = (input.KeyCode == bind)
         if not match and type(bind) == "string" then
             match = bind:find(input.KeyCode.Name, 1, true) ~= nil
@@ -1340,9 +1343,9 @@ function library:tab(properties)
             Name = "\0",
             Visible = false,
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 56),
+            Position = dim2(0, 196, 0, 8),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -216, 1, -101),
+            Size = dim2(1, -208, 1, -16),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1620,7 +1623,7 @@ function library:tab(properties)
         library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
         library:tween(items["name"], { TextColor3 = rgb(255, 255, 255) })
         library._active_tab_icon = items["icon"]
-        library:tween(items["tab_holder"], { Size = dim2(1, -196, 1, -81) }, Enum.EasingStyle.Quad, 0.4)
+        library:tween(items["tab_holder"], { Size = dim2(1, -196, 1, -16) }, Enum.EasingStyle.Quad, 0.15)
 
         items["tab_holder"].Visible = true
         items["tab_holder"].Parent = self.items["main"]
@@ -4893,7 +4896,7 @@ function library:Watermark(params)
         Parent = library["watermark_gui"],
         AnchorPoint = vec2(0.5, 0),
         Position = dim2(0.5, 0, 0, 14),
-        Size = dim2(0, 0, 0, 36),
+        Size = dim2(0, 0, 0, 42),
         BackgroundColor3 = themes.preset.section,
         BorderSizePixel = 0,
         ZIndex = 60,
@@ -4970,7 +4973,12 @@ function library:Watermark(params)
         return Label
     end
 
-    local NameStat = Stat(params.Name or library.author or "Emblem")
+    local NameStat = (function()
+        local L = Stat(params.Name or library.author or "Emblem")
+        L.TextColor3 = rgb(255, 255, 255)
+        L.FontFace = fonts.font
+        return L
+    end)()
     Separator()
     local GameStat = Stat("...")
     Separator()
