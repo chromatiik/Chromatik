@@ -86,9 +86,9 @@ local notifications = library.notifications
 local themes = {
     preset = {
         accent = rgb(155, 150, 219),
-        background = rgb(14, 14, 16),
-        section = rgb(22, 22, 24),
-        element = rgb(25, 25, 29),
+        background = rgb(28, 28, 32),
+        section = rgb(34, 34, 38),
+        element = rgb(38, 38, 42),
         light = rgb(33, 33, 35),
         hover = rgb(39, 39, 43),
         line = rgb(21, 21, 23),
@@ -755,12 +755,20 @@ function library:window(properties)
             TextSize = 14,
             FontFace = fonts.font,
             AutoButtonColor = false,
-            BackgroundTransparency = 1,
+            BackgroundColor3 = themes.preset.element,
+            BackgroundTransparency = 0,
             Position = dim2(0, 10, 1, -40),
             Size = dim2(1, -20, 0, 28),
             BorderSizePixel = 0,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 8,
+        })
+        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
+        library:create("UIStroke", {
+            Parent = items["search_btn"],
+            Color = rgb(48, 48, 54),
+            Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
         items["search_btn"].MouseButton1Click:Connect(function()
             if library.OpenSearch then library.OpenSearch() end
@@ -1643,34 +1651,64 @@ function library:section(properties)
         })
         library._searchIndex = library._searchIndex or {}
         table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"] })
-        -- drag sections
+        -- drag sections anywhere; snap back onto a column
         do
             local dragging = false
-            local start, startpos
+            local start
+            local home = self.items and self.items["column"]
+            local ghost
             items["outline"].Active = true
             items["outline"].InputBegan:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 local relY = input.Position.Y - items["outline"].AbsolutePosition.Y
-                if relY > 22 then return end
+                if relY > 26 then return end
                 dragging = true
                 start = input.Position
-                startpos = items["outline"].AbsolutePosition
-                items["outline"].Parent = library.items
+                local main = nil
+                pcall(function()
+                    for _, d in ipairs(library.items:GetChildren()) do
+                        if d:IsA("Frame") then main = d break end
+                    end
+                end)
+                items["outline"].Parent = main or library.items
+                items["outline"].Size = dim2(0, items["outline"].AbsoluteSize.X, 0, items["outline"].AbsoluteSize.Y)
+                items["outline"].Position = dim2(0, items["outline"].AbsolutePosition.X - (items["outline"].Parent.AbsolutePosition.X), 0, items["outline"].AbsolutePosition.Y - (items["outline"].Parent.AbsolutePosition.Y))
+                ghost = library:create("Frame", {
+                    Parent = home, Size = dim2(1, 0, 0, items["outline"].AbsoluteSize.Y),
+                    BackgroundColor3 = rgb(60, 60, 68), BackgroundTransparency = 0.4, BorderSizePixel = 0,
+                })
+                library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
+            end)
+            library:connection(uis.InputChanged, function(input)
+                if not dragging then return end
+                if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+                local par = items["outline"].Parent
+                if not par then return end
+                local pos = items["outline"].Position
+                items["outline"].Position = dim2(0, pos.X.Offset + (input.Position.X - start.X), 0, pos.Y.Offset + (input.Position.Y - start.Y))
+                start = input.Position
             end)
             library:connection(uis.InputEnded, function(input)
                 if not dragging then return end
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = false
-                local col = self.items and self.items["column"]
-                if col then
-                    items["outline"].Parent = col
-                    items["outline"].Position = dim2(0, 0, 0, 0)
-                end
-            end)
-            library:connection(uis.InputChanged, function(input)
-                if not dragging then return end
-                if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-                items["outline"].Position = dim2(0, startpos.X + (input.Position.X - start.X) - (library.items.AbsolutePosition and library.items.AbsolutePosition.X or 0), 0, startpos.Y + (input.Position.Y - start.Y) - (library.items.AbsolutePosition and library.items.AbsolutePosition.Y or 0))
+                if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
+                local dropCol = home
+                pcall(function()
+                    local mx, my = input.Position.X, input.Position.Y
+                    for _, d in ipairs(library.items:GetDescendants()) do
+                        if d.Name == "column" or (d:IsA("Frame") and d.Parent and d.Parent.Name == "\0" and d.AbsoluteSize.X > 80 and d.AbsoluteSize.Y > 80) then
+                            local p, s = d.AbsolutePosition, d.AbsoluteSize
+                            if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
+                                dropCol = d
+                                break
+                            end
+                        end
+                    end
+                end)
+                items["outline"].Parent = dropCol or home
+                items["outline"].Size = dim2(1, 0, cfg.size, -3)
+                items["outline"].Position = dim2(0, 0, 0, 0)
             end)
         end
 
@@ -1997,12 +2035,15 @@ function library:slider(options)
         Text = tostring(cfg.default),
         Parent = items["slider"],
         Name = "\0",
-        Size = dim2(0, 36, 0, 16),
-        Position = dim2(1, -42, 0, 1),
+        Size = dim2(0, 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.X,
+        Position = dim2(1, -8, 0, 1),
+        AnchorPoint = vec2(1, 0),
         BackgroundColor3 = themes.preset.element,
         TextXAlignment = Enum.TextXAlignment.Center,
         BorderSizePixel = 0,
-        TextSize = 12,
+        TextSize = 14,
+        FontFace = fonts.font,
         ClearTextOnFocus = false,
         ZIndex = 5,
     })
@@ -2843,12 +2884,13 @@ function library:keybind(options)
     }
 
     local items = cfg.items
+    local kbParent = self.items and (self.items["right_components"] or self.items["elements"])
     items["keybind_element"] = library:create("TextButton", {
         FontFace = fonts.font,
         TextColor3 = rgb(0, 0, 0),
         BorderColor3 = rgb(0, 0, 0),
         Text = "",
-        Parent = self.items["elements"],
+        Parent = kbParent,
         Name = "\0",
         BackgroundTransparency = 1,
         Size = dim2(1, 0, 0, 0),
@@ -2862,7 +2904,8 @@ function library:keybind(options)
         FontFace = fonts.font,
         TextColor3 = themes.preset.text,
         BorderColor3 = rgb(0, 0, 0),
-        Text = cfg.name,
+        Text = cfg.name or "",
+        Visible = cfg.name ~= nil and kbParent ~= (self.items and self.items["right_components"]),
         Parent = items["keybind_element"],
         Name = "\0",
         Size = dim2(1, 0, 0, 0),
@@ -3787,7 +3830,7 @@ function library:init_config(window)
     themeSec:label({ name = "Presets" })
 
     local presets = {
-        { name = "Default", color = rgb(155, 150, 219), bg = rgb(14, 14, 16), section = rgb(22, 22, 24), element = rgb(25, 25, 29), light = rgb(33, 33, 35) },
+        { name = "Default", color = rgb(155, 150, 219), bg = rgb(14, 14, 16), section = rgb(34, 34, 38), element = rgb(38, 38, 42), light = rgb(33, 33, 35) },
         { name = "Azure", color = rgb(96, 150, 255), bg = rgb(16, 20, 30), section = rgb(20, 25, 37), element = rgb(25, 31, 46), light = rgb(33, 41, 60) },
         { name = "Emerald", color = rgb(76, 214, 148), bg = rgb(14, 24, 20), section = rgb(18, 30, 25), element = rgb(23, 37, 31), light = rgb(30, 48, 40) },
         { name = "Ocean", color = rgb(72, 200, 214), bg = rgb(14, 23, 28), section = rgb(18, 28, 34), element = rgb(23, 35, 42), light = rgb(30, 45, 54) },
@@ -6325,82 +6368,90 @@ end
 
 -- Search overlay (Lunaris-style)
 function library.OpenSearch()
-    local main = library.items and library.items:FindFirstChildWhichIsA("Frame")
-    -- reuse
     if library._searchGui and library._searchGui.Parent then
         library._searchGui.Enabled = true
-        local box = library._searchBox
-        if box then box.Text = "" box:CaptureFocus() end
+        if library._searchBox then
+            library._searchBox.Text = ""
+            pcall(function() library._searchBox:CaptureFocus() end)
+        end
         return
     end
-    local host = library.items or coregui
     local gui = library:create("ScreenGui", {
         Parent = coregui, Name = "\0", IgnoreGuiInset = true, DisplayOrder = 25000,
         ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Global,
     })
     library._searchGui = gui
     local dimmer = library:create("TextButton", {
-        Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(8,8,10),
-        BackgroundTransparency = 0.35, Text = "", AutoButtonColor = false, ZIndex = 250,
+        Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(10,10,12),
+        BackgroundTransparency = 0.4, Text = "", AutoButtonColor = false, ZIndex = 250,
     })
     local panel = library:create("Frame", {
         Parent = gui, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-        Size = dim2(0, 380, 0, 320), BackgroundColor3 = themes.preset.section,
+        Size = dim2(0, 420, 0, 300), BackgroundColor3 = themes.preset.section,
         BorderSizePixel = 0, ZIndex = 251,
     })
-    library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 10) })
-    library:create("UIStroke", { Parent = panel, Color = rgb(30,30,36), Thickness = 1 })
+    library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 12) })
+    library:create("UIStroke", { Parent = panel, Color = rgb(36,36,42), Thickness = 1 })
+
     local title = library:create("TextLabel", {
-        Parent = panel, Text = "Search", FontFace = fonts.font, TextSize = 16,
+        Parent = panel, Text = "Search", FontFace = fonts.font, TextSize = 18,
         TextColor3 = themes.preset.text, BackgroundTransparency = 1,
-        Position = dim2(0, 16, 0, 10), Size = dim2(1, -50, 0, 22),
+        Position = dim2(0, 18, 0, 12), Size = dim2(1, -50, 0, 24),
         TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 252,
     })
     local close = library:create("TextButton", {
-        Parent = panel, Text = "×", FontFace = fonts.font, TextSize = 18,
+        Parent = panel, Text = "×", FontFace = fonts.font, TextSize = 20,
         TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-        Position = dim2(1, -28, 0, 8), Size = dim2(0, 20, 0, 20), ZIndex = 252,
+        Position = dim2(1, -32, 0, 10), Size = dim2(0, 22, 0, 22), ZIndex = 252,
     })
+    local boxHold = library:create("Frame", {
+        Parent = panel, Position = dim2(0, 16, 0, 44), Size = dim2(1, -32, 0, 32),
+        BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 252,
+    })
+    library:create("UICorner", { Parent = boxHold, CornerRadius = dim(0, 8) })
     local box = library:create("TextBox", {
-        Parent = panel, Position = dim2(0, 16, 0, 40), Size = dim2(1, -32, 0, 30),
-        BackgroundColor3 = themes.preset.element, TextColor3 = themes.preset.text,
+        Parent = boxHold, Size = dim2(1, -12, 1, 0), Position = dim2(0, 12, 0, 0),
+        BackgroundTransparency = 1, TextColor3 = themes.preset.text,
         PlaceholderText = "Search", PlaceholderColor3 = themes.preset.dimtext,
         FontFace = fonts.font, TextSize = 14, Text = "", ClearTextOnFocus = false,
-        BorderSizePixel = 0, ZIndex = 252, TextXAlignment = Enum.TextXAlignment.Left,
+        BorderSizePixel = 0, ZIndex = 253, TextXAlignment = Enum.TextXAlignment.Left,
     })
     library._searchBox = box
-    library:create("UICorner", { Parent = box, CornerRadius = dim(0, 6) })
-    library:create("UIPadding", { Parent = box, PaddingLeft = dim(0, 10) })
-    library:create("UIStroke", { Parent = box, Color = rgb(40,40,46), Thickness = 1 })
     local list = library:create("ScrollingFrame", {
-        Parent = panel, Position = dim2(0, 16, 0, 80), Size = dim2(1, -32, 1, -96),
+        Parent = panel, Position = dim2(0, 16, 0, 88), Size = dim2(1, -32, 1, -104),
         BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, ZIndex = 252,
-        CanvasSize = dim2(0,0,0,0), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = dim2(0,0,0,0),
     })
-    library:create("UIListLayout", { Parent = list, Padding = dim(0, 4) })
+    library:create("UIListLayout", { Parent = list, Padding = dim(0, 6) })
 
-    local function flash(inst)
+    local function reveal(inst)
         if not inst then return end
         pcall(function()
-            local stroke = inst:FindFirstChildWhichIsA("UIStroke")
+            local n = inst
+            while n do
+                if n:IsA("ScrollingFrame") then
+                    local rel = inst.AbsolutePosition.Y - n.AbsolutePosition.Y + n.CanvasPosition.Y
+                    n.CanvasPosition = Vector2.new(0, math.max(0, rel - 40))
+                    break
+                end
+                n = n.Parent
+            end
+        end)
+        pcall(function()
+            local target = inst
+            if inst:IsA("TextLabel") then target = inst.Parent or inst end
+            local stroke = target:FindFirstChild("EmblemFlash")
             if not stroke then
                 stroke = Instance.new("UIStroke")
+                stroke.Name = "EmblemFlash"
                 stroke.Thickness = 2
-                stroke.Parent = inst
+                stroke.Parent = target
             end
-            local old = stroke.Color
             stroke.Color = themes.preset.accent
             stroke.Enabled = true
             task.delay(1, function()
-                pcall(function() stroke.Color = old end)
+                pcall(function() stroke:Destroy() end)
             end)
-        end)
-        pcall(function()
-            if inst:IsA("TextLabel") or inst:IsA("TextButton") then
-                local old = inst.TextColor3
-                inst.TextColor3 = themes.preset.accent
-                task.delay(1, function() pcall(function() inst.TextColor3 = old end) end)
-            end
         end)
     end
 
@@ -6412,31 +6463,47 @@ function library.OpenSearch()
         if q == "" then return end
         local n = 0
         local seen = {}
-        local function add(name, inst)
-            if not name or seen[name] then return end
-            if not string.find(string.lower(tostring(name)), q, 1, true) then return end
+        local function add(name, inst, sub)
+            name = tostring(name or "")
+            if name == "" or seen[name] then return end
+            if not string.find(string.lower(name), q, 1, true) then return end
             seen[name] = true
             n += 1
-            if n > 14 then return end
+            if n > 10 then return end
             local b = library:create("TextButton", {
-                Parent = list, Size = dim2(1, 0, 0, 28), BackgroundColor3 = themes.preset.element,
-                Text = "  " .. tostring(name), TextColor3 = themes.preset.text, TextSize = 13,
-                FontFace = fonts.font, AutoButtonColor = false, BorderSizePixel = 0,
-                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 253,
+                Parent = list, Size = dim2(1, 0, 0, 44), BackgroundColor3 = themes.preset.element,
+                Text = "", AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 253,
             })
-            library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
+            library:create("UICorner", { Parent = b, CornerRadius = dim(0, 8) })
+            local bar = library:create("Frame", {
+                Parent = b, Size = dim2(0, 3, 1, -12), Position = dim2(0, 6, 0, 6),
+                BackgroundColor3 = themes.preset.accent, BorderSizePixel = 0, ZIndex = 254,
+            })
+            library:create("UICorner", { Parent = bar, CornerRadius = dim(0, 2) })
+            library:create("TextLabel", {
+                Parent = b, Text = name, FontFace = fonts.font, TextSize = 14,
+                TextColor3 = themes.preset.text, BackgroundTransparency = 1,
+                Position = dim2(0, 16, 0, 6), Size = dim2(1, -24, 0, 18),
+                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 254,
+            })
+            library:create("TextLabel", {
+                Parent = b, Text = sub or "Option · Section", FontFace = fonts.small, TextSize = 12,
+                TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
+                Position = dim2(0, 16, 0, 24), Size = dim2(1, -24, 0, 14),
+                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 254,
+            })
             b.MouseButton1Click:Connect(function()
                 gui.Enabled = false
-                flash(inst)
+                reveal(inst)
             end)
         end
         for _, item in ipairs(library._searchIndex or {}) do
-            add(item.name, item.inst)
+            add(item.name, item.inst, "Configs & Theme · Section")
         end
         if library.items then
             for _, d in ipairs(library.items:GetDescendants()) do
-                if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and #d.Text > 1 and #d.Text < 48 then
-                    add(d.Text, d)
+                if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and #d.Text > 1 and #d.Text < 48 and not d.Text:find("<") then
+                    add(d.Text, d, "Menu · Option")
                 end
             end
         end
