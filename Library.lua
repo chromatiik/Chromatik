@@ -6,18 +6,6 @@ local gui_service = game:GetService("GuiService")
 local run = game:GetService("RunService")
 local stats = game:GetService("Stats")
 local coregui = game:GetService("CoreGui")
-local function get_hui()
-    local h
-    pcall(function() if gethui then h = gethui() end end)
-    if h then return h end
-    pcall(function() h = game:GetService("CoreGui") end)
-    if h then return h end
-    pcall(function()
-        local lp = players.LocalPlayer or players.PlayerAdded:Wait()
-        h = lp:WaitForChild("PlayerGui")
-    end)
-    return h or coregui
-end
 local tween_service = game:GetService("TweenService")
 local marketplace = game:GetService("MarketplaceService")
 local text_service = game:GetService("TextService")
@@ -293,6 +281,18 @@ local function ApplyIcon(Object, Icon)
 end
 
 function library.LoadEmblemLogo()
+    if library._logoAsset then return library._logoAsset end
+    pcall(function()
+        local data = game:HttpGet("https://raw.githubusercontent.com/chromatiik/emblem/main/public/emblem.png")
+        if type(data) == "string" and #data > 80 then
+            pcall(function()
+                if makefolder then makefolder("Emblem") end
+                writefile("Emblem/logo.png", data)
+            end)
+            local ok, id = pcall(function() return getcustomasset("Emblem/logo.png") end)
+            if ok and id then library._logoAsset = id end
+        end
+    end)
     return library._logoAsset
 end
 
@@ -715,7 +715,7 @@ function library:window(properties)
     end
 
     library["items"] = library:create("ScreenGui", {
-        Parent = get_hui(),
+        Parent = coregui,
         Name = "\0",
         Enabled = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Global,
@@ -725,7 +725,7 @@ function library:window(properties)
 
 
     library["other"] = library:create("ScreenGui", {
-        Parent = get_hui(),
+        Parent = coregui,
         Name = "\0",
         Enabled = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -920,11 +920,6 @@ function library:window(properties)
             if ok and content then items["profile_avatar"].Image = content end
         end)
         pcall(function() items["profile_avatar"].Visible = false end)
-        pcall(function()
-            items["profile_btn"].MouseButton1Click:Connect(function()
-                cfg.toggle_menu(not library["items"].Enabled)
-            end)
-        end)
 
         local profileOpen = false
         local profilePopup = library:create("Frame", {
@@ -1201,7 +1196,7 @@ function library:window(properties)
 
         if touch then
             local btnGui = library:create("ScreenGui", {
-                Parent = get_hui(),
+                Parent = coregui,
                 Name = "\0",
                 ResetOnSpawn = false,
                 IgnoreGuiInset = true,
@@ -1317,8 +1312,7 @@ function library:window(properties)
         if library._sectionDragging then return end
         if library._menuKeyDown then return end
         library._menuKeyDown = true
-        local on = not (library["items"] and library["items"].Enabled)
-        cfg.toggle_menu(on)
+        cfg.toggle_menu(not library["items"].Enabled)
     end)
     library:connection(uis.InputEnded, function(input)
         if input.KeyCode == library.MenuKeybind or (type(library.MenuKeybind) == "string" and tostring(input.KeyCode):find(library.MenuKeybind, 1, true)) then
@@ -1817,7 +1811,7 @@ function library:section(properties)
         do
             if not library._floatGui then
                 library._floatGui = library:create("ScreenGui", {
-                    Parent = get_hui(), Name = "\0", IgnoreGuiInset = true, ResetOnSpawn = false,
+                    Parent = coregui, Name = "\0", IgnoreGuiInset = true, ResetOnSpawn = false,
                     DisplayOrder = 12000, ZIndexBehavior = Enum.ZIndexBehavior.Global,
                 })
             end
@@ -1939,14 +1933,13 @@ function library:section(properties)
         do
             if not library._floatGui then
                 library._floatGui = library:create("ScreenGui", {
-                    Parent = get_hui(), IgnoreGuiInset = true, ResetOnSpawn = false,
+                    Parent = coregui, IgnoreGuiInset = true, ResetOnSpawn = false,
                     DisplayOrder = 12000, ZIndexBehavior = Enum.ZIndexBehavior.Global, Name = "\0",
                 })
             end
             local dragging, start, home, ghost
             home = self.items and self.items["column"]
             items["button"].InputBegan:Connect(function(input)
-                return -- drag disabled
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = true
                 start = input.Position
@@ -4284,7 +4277,7 @@ function library:KeybindList(params)
     end
 
     local gui = library:create("ScreenGui", {
-        Parent = get_hui(),
+        Parent = coregui,
         Name = "\0",
         Enabled = true,
         ResetOnSpawn = false,
@@ -4886,7 +4879,7 @@ function library:Watermark(params)
 
     if not library["watermark_gui"] then
         library["watermark_gui"] = library:create("ScreenGui", {
-            Parent = get_hui(),
+            Parent = coregui,
             Name = "\0",
             Enabled = true,
             ResetOnSpawn = false,
@@ -5255,7 +5248,7 @@ function library:EspPreview(options)
     end
 
     local gui = library:create("ScreenGui", {
-        Parent = get_hui(),
+        Parent = coregui,
         Name = "\0",
         Enabled = true,
         ResetOnSpawn = false,
@@ -6301,7 +6294,7 @@ function library:PlayerCard(params)
     position = load_pos()
 
     local gui = library:create("ScreenGui", {
-        Parent = get_hui(),
+        Parent = coregui,
         Name = "\0",
         Enabled = true,
         ResetOnSpawn = false,
