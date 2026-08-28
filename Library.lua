@@ -660,9 +660,7 @@ function library.SnapSection(outline, mx, my)
     if not outline then return false end
     pcall(function()
         local loc = uis:GetMouseLocation()
-        local inset = game:GetService("GuiService"):GetGuiInset()
-        mx = loc.X
-        my = loc.Y - inset.Y
+        mx, my = loc.X, loc.Y
     end)
     local drop, best = nil, 1e18
     local main = library._windowMain
@@ -816,8 +814,8 @@ function library:window(properties)
             Name = "\0",
             BackgroundTransparency = 1,
             AnchorPoint = vec2(0.5, 0),
-            Size = dim2(0, 28, 0, 28),
-            Position = dim2(0.5, 0, 0, 18),
+            Size = dim2(0, 44, 0, 44),
+            Position = dim2(0.5, 0, 0, 10),
             BorderSizePixel = 0,
             ImageColor3 = themes.preset.text,
             ZIndex = 6,
@@ -1304,6 +1302,7 @@ function library:window(properties)
             match = bind:find(input.KeyCode.Name, 1, true) ~= nil
         end
         if not match then return end
+        if library._sectionDragging then return end
         if tick() - (library._menuFlipAt or 0) < 0.2 then return end
         library._menuFlipAt = tick()
         cfg.toggle_menu(not library["items"].Enabled)
@@ -1810,6 +1809,7 @@ function library:section(properties)
                 local relY = input.Position.Y - items["outline"].AbsolutePosition.Y
                 if relY > 28 then return end
                 dragging = true
+                library._sectionDragging = true
                 start = input.Position
                 local abs = items["outline"].AbsolutePosition
                 local sz = items["outline"].AbsoluteSize
@@ -1971,6 +1971,7 @@ function library:section(properties)
             library:connection(uis.InputEnded, function(input)
                 if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = false
+                library._sectionDragging = false
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
                 library.SnapSection(items["outline"], input.Position.X, input.Position.Y)
             end)
@@ -6726,14 +6727,20 @@ function library.OpenSearch()
                 pcall(function()
                     local page
                     for _, item in ipairs(library._searchIndex or {}) do
-                        if item.inst == inst then
+                        if item.inst == inst or item.name == name then
                             if item.tab then use = item.tab end
                             page = item.page
                             break
                         end
                     end
                     if use and use.open_tab then use.open_tab() end
-                    if page and page.open_page then page.open_page() end
+                    local tbtn = use and use.items and use.items["button"]
+                    if tbtn then
+                        pcall(function() use.open_tab() end)
+                    end
+                    if page and page.open_page then
+                        page.open_page()
+                    end
                 end)
                 task.spawn(function()
                     for _ = 1, 12 do
