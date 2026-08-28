@@ -677,6 +677,7 @@ function library:window(properties)
             BackgroundColor3 = themes.preset.background,
         })
         items["main"].Position = dim2(0, items["main"].AbsolutePosition.X, 0, items["main"].AbsolutePosition.Y)
+        library._windowMain = items["main"]
 
         library:create("UICorner", {
             Parent = items["main"],
@@ -750,7 +751,8 @@ function library:window(properties)
         items["search_btn"] = library:create("TextButton", {
             Parent = items["side_frame"],
             Name = "\0",
-            Text = "  Search",
+            Text = "  Search", -- icon added below
+            TextXAlignment = Enum.TextXAlignment.Left,
             TextColor3 = themes.preset.dimtext,
             TextSize = 14,
             FontFace = fonts.font,
@@ -770,6 +772,13 @@ function library:window(properties)
             Thickness = 1,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
+        local sicon = library:create("ImageLabel", {
+            Parent = items["search_btn"], BackgroundTransparency = 1,
+            Size = dim2(0, 14, 0, 14), Position = dim2(0, 8, 0.5, -7),
+            ImageColor3 = themes.preset.dimtext, ZIndex = 9, BorderSizePixel = 0,
+        })
+        pcall(function() ApplyIcon(sicon, "search") end)
+        items["search_btn"].Text = "     Search"
         items["search_btn"].MouseButton1Click:Connect(function()
             if library.OpenSearch then library.OpenSearch() end
         end)
@@ -1181,12 +1190,23 @@ function library:window(properties)
     end
 
     function cfg.toggle_menu(bool)
-        library["items"].Enabled = bool
+        if bool == nil then
+            bool = not library["items"].Enabled
+        end
+        library["items"].Enabled = bool and true or false
         pcall(function()
             shared = shared or {}
-            shared._hostMenuOpen = bool == true
+            shared._hostMenuOpen = library["items"].Enabled
         end)
     end
+
+    library:connection(uis.InputBegan, function(input)
+        if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+        if library._rebindingMenu then return end
+        if input.KeyCode == library.MenuKeybind then
+            cfg.toggle_menu(not library["items"].Enabled)
+        end
+    end)
 
     return setmetatable(cfg, library)
 end
@@ -1893,6 +1913,23 @@ function library:toggle(options)
         PaddingLeft = dim(0, 5),
     })
 
+    items["left_components"] = library:create("Frame", {
+        Parent = items["toggle"],
+        Name = "\0",
+        Position = dim2(0, 0, 0, 0),
+        Size = dim2(0, 0, 1, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 5,
+    })
+    library:create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        Parent = items["left_components"],
+        Padding = dim(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    })
     items["right_components"] = library:create("Frame", {
         Parent = items["toggle"],
         Name = "\0",
@@ -2042,9 +2079,9 @@ function library:slider(options)
         Text = tostring(cfg.default),
         Parent = items["slider"],
         Name = "\0",
-        Size = dim2(0, 44, 0, 18),
+        Size = dim2(0, 40, 0, 18),
         AutomaticSize = Enum.AutomaticSize.X,
-        Position = dim2(1, -8, 0, 0),
+        Position = dim2(1, 0, 0, 0),
         AnchorPoint = vec2(1, 0),
         BackgroundColor3 = themes.preset.light,
         TextColor3 = rgb(255, 255, 255),
@@ -2892,7 +2929,7 @@ function library:keybind(options)
     }
 
     local items = cfg.items
-    local kbParent = self.items and (self.items["right_components"] or self.items["elements"])
+    local kbParent = self.items and (self.items["left_components"] or self.items["right_components"] or self.items["elements"])
     items["keybind_element"] = library:create("TextButton", {
         FontFace = fonts.font,
         TextColor3 = rgb(0, 0, 0),
@@ -3902,8 +3939,8 @@ function library:init_config(window)
     themeSec:keybind({
         name = "Menu Bind", flag = "menu_bind",
         key = library.MenuKeybind or Enum.KeyCode.RightControl, mode = "Toggle",
-        callback = function(bool)
-            if window and window.toggle_menu then window.toggle_menu(bool) end
+        callback = function()
+            -- visibility is handled by the global MenuKeybind listener
         end,
         default = true,
     })
@@ -4656,7 +4693,7 @@ function library:Watermark(params)
         Parent = library["watermark_gui"],
         AnchorPoint = vec2(0.5, 0),
         Position = dim2(0.5, 0, 0, 14),
-        Size = dim2(0, 0, 0, 40),
+        Size = dim2(0, 0, 0, 26),
         BackgroundColor3 = themes.preset.section,
         BorderSizePixel = 0,
         ZIndex = 60,
@@ -6368,62 +6405,79 @@ end
 
 -- Search overlay (Lunaris-style)
 function library.OpenSearch()
-    if library._searchGui and library._searchGui.Parent then
-        library._searchGui.Enabled = true
+    local main = library._windowMain
+    if library._searchPanel and library._searchPanel.Parent then
+        library._searchPanel.Visible = true
+        if library._searchDim then library._searchDim.Visible = true end
         if library._searchBox then
             library._searchBox.Text = ""
             pcall(function() library._searchBox:CaptureFocus() end)
         end
         return
     end
-    local gui = library:create("ScreenGui", {
-        Parent = coregui, Name = "\0", IgnoreGuiInset = true, DisplayOrder = 25000,
-        ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Global,
-    })
-    library._searchGui = gui
+    local host = main or coregui
     local dimmer = library:create("TextButton", {
-        Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(10,10,12),
-        BackgroundTransparency = 0.4, Text = "", AutoButtonColor = false, ZIndex = 250,
+        Parent = host, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(0,0,0),
+        BackgroundTransparency = 0.35, Text = "", AutoButtonColor = false, ZIndex = 400,
+        BorderSizePixel = 0,
     })
+    library._searchDim = dimmer
     local panel = library:create("Frame", {
-        Parent = gui, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-        Size = dim2(0, 420, 0, 300), BackgroundColor3 = themes.preset.section,
-        BorderSizePixel = 0, ZIndex = 251,
+        Parent = host, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+        Size = dim2(0, 0, 0, 0), BackgroundColor3 = themes.preset.section,
+        BorderSizePixel = 0, ZIndex = 401,
     })
+    library._searchPanel = panel
     library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 12) })
     library:create("UIStroke", { Parent = panel, Color = rgb(36,36,42), Thickness = 1 })
+    library:tween(panel, { Size = dim2(0, 400, 0, 280) }, Enum.EasingStyle.Quint, 0.22)
 
     local title = library:create("TextLabel", {
         Parent = panel, Text = "Search", FontFace = fonts.font, TextSize = 18,
         TextColor3 = themes.preset.text, BackgroundTransparency = 1,
         Position = dim2(0, 18, 0, 12), Size = dim2(1, -50, 0, 24),
-        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 252,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 402,
     })
     local close = library:create("TextButton", {
         Parent = panel, Text = "×", FontFace = fonts.font, TextSize = 20,
         TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-        Position = dim2(1, -32, 0, 10), Size = dim2(0, 22, 0, 22), ZIndex = 252,
+        Position = dim2(1, -32, 0, 10), Size = dim2(0, 22, 0, 22), ZIndex = 402,
     })
     local boxHold = library:create("Frame", {
         Parent = panel, Position = dim2(0, 16, 0, 44), Size = dim2(1, -32, 0, 32),
-        BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 252,
+        BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 402,
     })
     library:create("UICorner", { Parent = boxHold, CornerRadius = dim(0, 8) })
+    local ico = library:create("ImageLabel", {
+        Parent = boxHold, Size = dim2(0, 14, 0, 14), Position = dim2(0, 8, 0.5, -7),
+        BackgroundTransparency = 1, ImageColor3 = themes.preset.dimtext, ZIndex = 403,
+    })
+    pcall(function() ApplyIcon(ico, "search") end)
     local box = library:create("TextBox", {
-        Parent = boxHold, Size = dim2(1, -12, 1, 0), Position = dim2(0, 12, 0, 0),
+        Parent = boxHold, Size = dim2(1, -36, 1, 0), Position = dim2(0, 28, 0, 0),
         BackgroundTransparency = 1, TextColor3 = themes.preset.text,
-        PlaceholderText = "Search", PlaceholderColor3 = themes.preset.dimtext,
+        PlaceholderText = "Search sections and elements", PlaceholderColor3 = themes.preset.dimtext,
         FontFace = fonts.font, TextSize = 14, Text = "", ClearTextOnFocus = false,
-        BorderSizePixel = 0, ZIndex = 253, TextXAlignment = Enum.TextXAlignment.Left,
+        BorderSizePixel = 0, ZIndex = 403, TextXAlignment = Enum.TextXAlignment.Left,
     })
     library._searchBox = box
+    local hint = library:create("TextLabel", {
+        Parent = panel, Text = "Start typing to search", FontFace = fonts.font, TextSize = 13,
+        TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
+        Position = dim2(0, 16, 0.5, 10), Size = dim2(1, -32, 0, 20),
+        TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 402,
+    })
     local list = library:create("ScrollingFrame", {
         Parent = panel, Position = dim2(0, 16, 0, 88), Size = dim2(1, -32, 1, -104),
-        BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, ZIndex = 252,
-        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = dim2(0,0,0,0),
+        BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, ZIndex = 402,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = dim2(0,0,0,0), Visible = false,
     })
     library:create("UIListLayout", { Parent = list, Padding = dim(0, 6) })
 
+    local function hide()
+        dimmer.Visible = false
+        panel.Visible = false
+    end
     local function reveal(inst)
         if not inst then return end
         pcall(function()
@@ -6431,7 +6485,7 @@ function library.OpenSearch()
             while n do
                 if n:IsA("ScrollingFrame") then
                     local rel = inst.AbsolutePosition.Y - n.AbsolutePosition.Y + n.CanvasPosition.Y
-                    n.CanvasPosition = Vector2.new(0, math.max(0, rel - 40))
+                    n.CanvasPosition = Vector2.new(0, math.max(0, rel - 24))
                     break
                 end
                 n = n.Parent
@@ -6439,27 +6493,20 @@ function library.OpenSearch()
         end)
         pcall(function()
             local target = inst
-            if inst:IsA("TextLabel") then target = inst.Parent or inst end
-            local stroke = target:FindFirstChild("EmblemFlash")
-            if not stroke then
-                stroke = Instance.new("UIStroke")
-                stroke.Name = "EmblemFlash"
-                stroke.Thickness = 2
-                stroke.Parent = target
-            end
-            stroke.Color = themes.preset.accent
-            stroke.Enabled = true
-            task.delay(1, function()
-                pcall(function() stroke:Destroy() end)
-            end)
+            local old = target.BackgroundColor3
+            local oldT = target.BackgroundTransparency
+            target.BackgroundTransparency = 0
+            target.BackgroundColor3 = themes.preset.accent
+            library:tween(target, { BackgroundColor3 = old, BackgroundTransparency = oldT }, Enum.EasingStyle.Quad, 0.9)
         end)
     end
-
     local function refresh()
         for _, c in ipairs(list:GetChildren()) do
             if c:IsA("TextButton") then c:Destroy() end
         end
         local q = string.lower(box.Text or "")
+        hint.Visible = q == ""
+        list.Visible = q ~= ""
         if q == "" then return end
         local n = 0
         local seen = {}
@@ -6472,32 +6519,32 @@ function library.OpenSearch()
             if n > 10 then return end
             local b = library:create("TextButton", {
                 Parent = list, Size = dim2(1, 0, 0, 44), BackgroundColor3 = themes.preset.element,
-                Text = "", AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 253,
+                Text = "", AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 403,
             })
             library:create("UICorner", { Parent = b, CornerRadius = dim(0, 8) })
             local bar = library:create("Frame", {
                 Parent = b, Size = dim2(0, 3, 1, -12), Position = dim2(0, 6, 0, 6),
-                BackgroundColor3 = themes.preset.accent, BorderSizePixel = 0, ZIndex = 254,
+                BackgroundColor3 = themes.preset.accent, BorderSizePixel = 0, ZIndex = 404,
             })
             library:create("UICorner", { Parent = bar, CornerRadius = dim(0, 2) })
             library:create("TextLabel", {
                 Parent = b, Text = name, FontFace = fonts.font, TextSize = 14,
                 TextColor3 = themes.preset.text, BackgroundTransparency = 1,
                 Position = dim2(0, 16, 0, 6), Size = dim2(1, -24, 0, 18),
-                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 254,
+                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 404,
             })
             library:create("TextLabel", {
-                Parent = b, Text = sub or "Option · Section", FontFace = fonts.small, TextSize = 12,
+                Parent = b, Text = sub or "Option", FontFace = fonts.small, TextSize = 12,
                 TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
                 Position = dim2(0, 16, 0, 24), Size = dim2(1, -24, 0, 14),
-                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 254,
+                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 404,
             })
             b.MouseButton1Click:Connect(function()
-                gui.Enabled = false
+                hide()
                 pcall(function()
                     if tab and tab.open_tab then tab.open_tab() end
                 end)
-                task.defer(function() reveal(inst) end)
+                task.delay(0.05, function() reveal(inst) end)
             end)
         end
         for _, item in ipairs(library._searchIndex or {}) do
@@ -6505,15 +6552,15 @@ function library.OpenSearch()
         end
         if library.items then
             for _, d in ipairs(library.items:GetDescendants()) do
-                if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and #d.Text > 1 and #d.Text < 48 and not d.Text:find("<") then
-                    add(d.Text, d, "Menu · Option")
+                if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text and #d.Text > 1 and #d.Text < 48 and not tostring(d.Text):find("<") then
+                    add(d.Text, d, "Option")
                 end
             end
         end
     end
     box:GetPropertyChangedSignal("Text"):Connect(refresh)
-    dimmer.MouseButton1Click:Connect(function() gui.Enabled = false end)
-    close.MouseButton1Click:Connect(function() gui.Enabled = false end)
+    dimmer.MouseButton1Click:Connect(hide)
+    close.MouseButton1Click:Connect(hide)
     task.defer(function() box:CaptureFocus() end)
 end
 
