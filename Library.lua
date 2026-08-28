@@ -1816,7 +1816,15 @@ function library._updateGhost(col, height)
     local h = math.clamp(height or 140, 70, 400)
     library._snapGhost.Visible = true
     library._snapGhost.ZIndex = 500
-    library._snapGhost.Position = UDim2.fromOffset(ap.X + 4, ap.Y + yOff)
+    -- Repositioning a *separate* element using another element's
+    -- AbsolutePosition, then setting it via UDim2.fromOffset under a
+    -- ScreenGui with IgnoreGuiInset = true, is a documented Roblox
+    -- engine quirk: AbsolutePosition doesn't come back in the same
+    -- coordinate space UDim2.fromOffset expects here, off by exactly
+    -- the topbar GuiInset - which is what was showing up as the ghost
+    -- rendering above where it should be. Compensate with the same
+    -- gui_offset constant already computed at the top of this file.
+    library._snapGhost.Position = UDim2.fromOffset(ap.X + 4, ap.Y + yOff + gui_offset)
     library._snapGhost.Size = UDim2.fromOffset(math.max(50, asz.X - 8), h)
 end
 
@@ -1849,23 +1857,27 @@ function library.RefreshPageScroll()
     if not (th and th:IsA("ScrollingFrame")) then return end
 
     -- Columns use AutomaticSize.Y, so Roblox's own layout engine has
-    -- already computed their true natural content height - read it
-    -- directly instead of re-deriving it by walking arbitrary
-    -- descendants and re-summing children, which is easy to get wrong
-    -- (and was undercounting, leaving the canvas too short to scroll).
-    local maxH = 0
+    -- already computed their true natural content height. Measure each
+    -- column's actual bottom edge in screen space and compare against the
+    -- scroll frame's own top edge, rather than assuming every column
+    -- starts flush at Y=0 inside it - two columns with very different
+    -- natural heights can end up positioned slightly differently under
+    -- VerticalFlex=Fill, and comparing raw AbsoluteSize alone silently
+    -- ignores that, which is exactly the kind of thing that produces a
+    -- canvas taller than the content actually needs.
+    local maxBottom = 0
     for _, col in ipairs(library._columns or {}) do
         if col and col.Parent and col.Visible ~= false and col:IsDescendantOf(th) then
-            if col.AbsoluteSize.Y > maxH then
-                maxH = col.AbsoluteSize.Y
-            end
+            local bottom = col.AbsolutePosition.Y + col.AbsoluteSize.Y
+            if bottom > maxBottom then maxBottom = bottom end
         end
     end
+    local neededHeight = maxBottom > 0 and (maxBottom - th.AbsolutePosition.Y) or 0
 
     th.AutomaticCanvasSize = Enum.AutomaticSize.None
     th.ScrollingEnabled = true
     th.Active = true
-    th.CanvasSize = dim2(0, 0, 0, math.max(maxH + 32, 1))
+    th.CanvasSize = dim2(0, 0, 0, math.max(neededHeight + 16, 1))
 end
 
 function library.SnapSection(outline, mx, my)
@@ -2265,11 +2277,12 @@ function library:toggle(options)
         Text = cfg.name,
         Parent = items["toggle"],
         Name = "\0",
-        Size = dim2(1, 0, 0, 0),
+        Size = dim2(1, -46, 0, 0),
         BackgroundTransparency = 1,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
         BorderSizePixel = 0,
-        AutomaticSize = Enum.AutomaticSize.XY,
+        AutomaticSize = Enum.AutomaticSize.Y,
         TextSize = 16,
         BackgroundColor3 = rgb(255, 255, 255),
     })
@@ -2398,6 +2411,7 @@ function library:slider(options)
         Name = "\0",
         BackgroundTransparency = 1,
         Size = dim2(1, 0, 0, 42),
+        AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         BackgroundColor3 = rgb(255, 255, 255),
     })
@@ -2410,11 +2424,12 @@ function library:slider(options)
         Text = cfg.name,
         Parent = items["slider"],
         Name = "\0",
-        Size = dim2(1, -70, 0, 18),
+        Size = dim2(1, -58, 0, 0),
         Position = dim2(0, 5, 0, 0),
         BackgroundTransparency = 1,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextWrapped = true,
+        AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         TextSize = 15,
         BackgroundColor3 = rgb(255, 255, 255),
@@ -2427,8 +2442,8 @@ function library:slider(options)
         Text = tostring(cfg.default) .. cfg.suffix,
         Parent = items["slider"],
         Name = "\0",
-        Size = dim2(0, 60, 0, 18),
-        Position = dim2(1, -65, 0, 0),
+        Size = dim2(0, 54, 0, 18),
+        Position = dim2(1, -59, 0, 0),
         BackgroundTransparency = 1,
         TextXAlignment = Enum.TextXAlignment.Right,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -2446,6 +2461,18 @@ function library:slider(options)
         BorderSizePixel = 0,
         BackgroundColor3 = themes.preset.light,
     })
+
+    -- items["name"] can now wrap to 2+ lines for long labels in narrow
+    -- columns instead of truncating with "..." - when it does, its own
+    -- height grows via AutomaticSize, so follow that here to push the
+    -- track down instead of letting it overlap the wrapped second line.
+    local function repositionTrack()
+        local nameH = items["name"].AbsoluteSize.Y
+        local y = math.max(24, nameH + 8)
+        items["track"].Position = dim2(0, 5, 0, y)
+    end
+    items["name"]:GetPropertyChangedSignal("AbsoluteSize"):Connect(repositionTrack)
+    task.defer(repositionTrack)
 
     library:create("UICorner", {
         Parent = items["track"],
@@ -2576,6 +2603,14 @@ function library:dropdown(options)
         BackgroundColor3 = rgb(255, 255, 255),
     })
 
+    -- Declared early so the width-aware reposition/close-height helpers
+    -- below (which need to check popup.open) can close over it; the
+    -- popup Frame itself is still built further down where it always was.
+    local popup = {
+        open = false,
+        order = {},
+    }
+
     items["name"] = library:create("TextLabel", {
         FontFace = fonts.font,
         TextColor3 = themes.preset.dimtext,
@@ -2583,15 +2618,32 @@ function library:dropdown(options)
         Text = cfg.name,
         Parent = items["dropdown"],
         Name = "\0",
-        Size = dim2(1, -10, 0, 18),
+        Size = dim2(1, -10, 0, 0),
         Position = dim2(0, 5, 0, 0),
         BackgroundTransparency = 1,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextWrapped = true,
+        AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         TextSize = 15,
         BackgroundColor3 = rgb(255, 255, 255),
     })
+
+    -- items["name"] can now wrap instead of truncating with "..." in
+    -- narrow columns, so the box (and the whole closed-state height used
+    -- by the open/close popup animation below) needs to follow its real
+    -- height rather than assume a fixed single line.
+    local function closedHeight()
+        return items["name"].AbsoluteSize.Y + 4 + 28 + 4
+    end
+    local function repositionBox()
+        items["box"].Position = dim2(0, 5, 0, items["name"].AbsoluteSize.Y + 4)
+        if not popup or not popup.open then
+            items["dropdown"].Size = dim2(1, 0, 0, closedHeight())
+        end
+    end
+    items["name"]:GetPropertyChangedSignal("AbsoluteSize"):Connect(repositionBox)
+    task.defer(repositionBox)
 
     items["box"] = library:create("Frame", {
         Parent = items["dropdown"],
@@ -2656,11 +2708,8 @@ function library:dropdown(options)
         BorderSizePixel = 0,
     })
 
-
-    local popup = {
-        open = false,
-        order = {},
-    }
+    -- popup was moved up next to items["dropdown"]'s creation (see comment
+    -- there) so the reposition helpers could close over it.
 
     local popupFrame = library:create("Frame", {
         Parent = library["other"],
@@ -2932,7 +2981,7 @@ function library:dropdown(options)
 
             popupFrame.BackgroundColor3 = themes.preset.light
             popupFrame.BackgroundTransparency = 0
-            popupFrame.Position = dim2(0, 5, 0, 52)
+            popupFrame.Position = dim2(0, 5, 0, closedHeight() - 2)
             popupFrame.Size = dim2(1, -10, 0, 0)
             popupFrame.Parent = items["dropdown"]
             popupFrame.Visible = true
@@ -2941,7 +2990,7 @@ function library:dropdown(options)
 
 
             library:tween(items["dropdown"], {
-                Size = dim2(1, 0, 0, 54 + targetH),
+                Size = dim2(1, 0, 0, closedHeight() + targetH),
             }, Enum.EasingStyle.Quint, 0.18)
             library:tween(popupFrame, {
                 Size = dim2(1, -10, 0, targetH),
@@ -2953,14 +3002,14 @@ function library:dropdown(options)
                 Size = dim2(1, -10, 0, 0),
             }, Enum.EasingStyle.Quint, 0.15)
             library:tween(items["dropdown"], {
-                Size = dim2(1, 0, 0, 54),
+                Size = dim2(1, 0, 0, closedHeight()),
             }, Enum.EasingStyle.Quint, 0.15)
             library:tween(items["arrow"], { Rotation = 0 }, Enum.EasingStyle.Quint, 0.15)
             task.delay(0.16, function()
                 if not popup.open then
                     popupFrame.Visible = false
                     popupFrame.Parent = library["other"]
-                    items["dropdown"].Size = dim2(1, 0, 0, 54)
+                    items["dropdown"].Size = dim2(1, 0, 0, closedHeight())
                 end
             end)
         end
@@ -5126,6 +5175,34 @@ function library:Watermark(params)
 
     Items.Bar.Active = false
     library.WatermarkBar = Items.Bar
+
+    -- The bar has a fixed top-center screen position, but the main menu
+    -- window is user-draggable and can end up anywhere - including
+    -- right under the watermark's default spot, which is exactly what
+    -- was happening here. Track the menu's live bounds each frame and
+    -- nudge the bar below the menu whenever they'd actually overlap,
+    -- rather than assuming a fixed position is always clear.
+    local DEFAULT_POS = dim2(0.5, 0, 0, 14)
+    library:connection(run.RenderStepped, function()
+        if not Items.Bar or not Items.Bar.Parent then return end
+        local main = library.items and library.items:FindFirstChild("main")
+        if not (main and main.Parent and main.Visible) then
+            if Items.Bar.Position ~= DEFAULT_POS then
+                Items.Bar.Position = DEFAULT_POS
+            end
+            return
+        end
+        local mp, ms = main.AbsolutePosition, main.AbsoluteSize
+        local bp, bs = Items.Bar.AbsolutePosition, Items.Bar.AbsoluteSize
+        local overlaps = bp.X < mp.X + ms.X and bp.X + bs.X > mp.X
+            and bp.Y < mp.Y + ms.Y and bp.Y + bs.Y > mp.Y
+        if overlaps then
+            Items.Bar.Position = UDim2.fromOffset(mp.X + ms.X * 0.5, mp.Y + ms.Y + 10)
+            Items.Bar.AnchorPoint = vec2(0.5, 0)
+        elseif Items.Bar.Position ~= DEFAULT_POS then
+            Items.Bar.Position = DEFAULT_POS
+        end
+    end)
 
     local Watermark = { Instance = Items.Bar }
 
