@@ -783,15 +783,20 @@ function library:window(properties)
             BackgroundColor3 = themes.preset.line,
         })
 
-        items["button_holder"] = library:create("Frame", {
+        items["button_holder"] = library:create("ScrollingFrame", {
             Parent = items["side_frame"],
             Name = "\0",
             BackgroundTransparency = 1,
             Position = dim2(0, 0, 0, 56),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 1, -100),
+            Size = dim2(1, 0, 1, -108),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = rgb(60, 60, 66),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            CanvasSize = dim2(0, 0, 0, 0),
+            Active = true,
         })
         cfg.button_holder = items["button_holder"]
 
