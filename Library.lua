@@ -751,21 +751,25 @@ function library:window(properties)
             PaddingLeft = dim(0, 10),
         })
 
-        items["title"] = library:create("TextLabel", {
-            FontFace = fonts.font,
-            BorderColor3 = rgb(0, 0, 0),
+        items["title"] = library:create("Frame", {
             Parent = items["side_frame"],
-            Name = "\0",
-            Text = string.format('<u>%s</u><font color = "rgb(255, 255, 255)">%s</font>', cfg.name, cfg.suffix),
             BackgroundTransparency = 1,
             Size = dim2(1, 0, 0, 70),
-            TextColor3 = themes.preset.accent,
             BorderSizePixel = 0,
-            RichText = true,
-            TextSize = 30,
-            BackgroundColor3 = rgb(255, 255, 255),
         })
-        library:apply_theme(items["title"], "accent", "TextColor3")
+        items["title_icon"] = library:create("ImageLabel", {
+            Parent = items["title"],
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 36, 0, 36),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ImageColor3 = rgb(255, 255, 255),
+            ScaleType = Enum.ScaleType.Fit,
+        })
+        pcall(function()
+            if ApplyIcon then ApplyIcon(items["title_icon"], cfg.icon or "layers") end
+        end)
 
         items["multi_holder"] = library:create("Frame", {
             Parent = items["main"],
