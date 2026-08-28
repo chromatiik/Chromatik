@@ -1680,7 +1680,8 @@ function library:column(properties)
         BackgroundTransparency = 1,
         Name = "\0",
         BorderColor3 = rgb(0, 0, 0),
-        Size = dim2(0.5, -4, 1, 0),
+        Size = dim2(0.5, -4, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         BackgroundColor3 = rgb(255, 255, 255),
     })
@@ -1808,7 +1809,8 @@ function library.SnapSection(outline, mx, my)
     if best then
         outline.Parent = best
         local sy = tonumber(outline:GetAttribute("ScaleY")) or 0.5
-        outline.Size = dim2(1, 0, sy, -3)
+        outline.AutomaticSize = Enum.AutomaticSize.Y
+        outline.Size = dim2(1, 0, 0, 0)
         outline.Position = dim2(0, 0, 0, 0)
         library._lastColumn = best
     else
@@ -1955,7 +1957,8 @@ function library:section(properties)
             Name = "\0",
             Parent = self.items["column"],
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 0, cfg.size, -3),
+            Size = dim2(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.element,
         })
@@ -1971,7 +1974,8 @@ function library:section(properties)
             Name = "\0",
             Position = dim2(0, 1, 0, 1),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -2, 1, -2),
+            Size = dim2(1, -2, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.section,
         })
@@ -1980,21 +1984,22 @@ function library:section(properties)
             Parent = items["inline"],
             CornerRadius = dim(0, 7),
         })
+        library:create("UIPadding", {
+            Parent = items["inline"],
+            PaddingTop = dim(0, 36),
+            PaddingBottom = dim(0, 8),
+        })
 
-        items["scrolling"] = library:create("ScrollingFrame", {
-            ScrollBarImageColor3 = rgb(44, 44, 46),
-            Active = true,
-            AutomaticCanvasSize = Enum.AutomaticSize.Y,
-            ScrollBarThickness = 2,
+        items["scrolling"] = library:create("Frame", {
             Parent = items["inline"],
             Name = "\0",
-            Size = dim2(1, 0, 1, -40),
+            Size = dim2(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
-            Position = dim2(0, 0, 0, 35),
+            Position = dim2(0, 0, 0, 0),
             BackgroundColor3 = rgb(255, 255, 255),
             BorderColor3 = rgb(0, 0, 0),
             BorderSizePixel = 0,
-            CanvasSize = dim2(0, 0, 0, 0),
         })
 
         items["elements"] = library:create("Frame", {
