@@ -86,9 +86,9 @@ local notifications = library.notifications
 local themes = {
     preset = {
         accent = rgb(155, 150, 219),
-        background = rgb(28, 28, 32),
-        section = rgb(34, 34, 38),
-        element = rgb(38, 38, 42),
+        background = rgb(14, 14, 16),
+        section = rgb(22, 22, 24),
+        element = rgb(25, 25, 29),
         light = rgb(33, 33, 35),
         hover = rgb(39, 39, 43),
         line = rgb(21, 21, 23),
@@ -1650,9 +1650,15 @@ function library:section(properties)
             CornerRadius = dim(0, 7),
         })
         library._searchIndex = library._searchIndex or {}
-        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"] })
-        -- drag sections anywhere; snap back onto a column
+        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = self })
+        -- drag from header; can leave the menu
         do
+            if not library._floatGui then
+                library._floatGui = library:create("ScreenGui", {
+                    Parent = coregui, Name = "\0", IgnoreGuiInset = true, ResetOnSpawn = false,
+                    DisplayOrder = 12000, ZIndexBehavior = Enum.ZIndexBehavior.Global,
+                })
+            end
             local dragging = false
             local start
             local home = self.items and self.items["column"]
@@ -1661,29 +1667,25 @@ function library:section(properties)
             items["outline"].InputBegan:Connect(function(input)
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 local relY = input.Position.Y - items["outline"].AbsolutePosition.Y
-                if relY > 26 then return end
+                if relY > 28 then return end
                 dragging = true
                 start = input.Position
-                local main = nil
-                pcall(function()
-                    for _, d in ipairs(library.items:GetChildren()) do
-                        if d:IsA("Frame") then main = d break end
-                    end
-                end)
-                items["outline"].Parent = main or library.items
-                items["outline"].Size = dim2(0, items["outline"].AbsoluteSize.X, 0, items["outline"].AbsoluteSize.Y)
-                items["outline"].Position = dim2(0, items["outline"].AbsolutePosition.X - (items["outline"].Parent.AbsolutePosition.X), 0, items["outline"].AbsolutePosition.Y - (items["outline"].Parent.AbsolutePosition.Y))
-                ghost = library:create("Frame", {
-                    Parent = home, Size = dim2(1, 0, 0, items["outline"].AbsoluteSize.Y),
-                    BackgroundColor3 = rgb(60, 60, 68), BackgroundTransparency = 0.4, BorderSizePixel = 0,
-                })
-                library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
+                local abs = items["outline"].AbsolutePosition
+                local sz = items["outline"].AbsoluteSize
+                items["outline"].Parent = library._floatGui
+                items["outline"].Size = dim2(0, sz.X, 0, sz.Y)
+                items["outline"].Position = dim2(0, abs.X, 0, abs.Y)
+                if home then
+                    ghost = library:create("Frame", {
+                        Parent = home, Size = dim2(1, 0, 0, sz.Y),
+                        BackgroundColor3 = rgb(70, 70, 78), BackgroundTransparency = 0.35, BorderSizePixel = 0,
+                    })
+                    library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
+                end
             end)
             library:connection(uis.InputChanged, function(input)
                 if not dragging then return end
                 if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-                local par = items["outline"].Parent
-                if not par then return end
                 local pos = items["outline"].Position
                 items["outline"].Position = dim2(0, pos.X.Offset + (input.Position.X - start.X), 0, pos.Y.Offset + (input.Position.Y - start.Y))
                 start = input.Position
@@ -1693,22 +1695,27 @@ function library:section(properties)
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = false
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
-                local dropCol = home
+                local mx, my = input.Position.X, input.Position.Y
+                local dropCol
                 pcall(function()
-                    local mx, my = input.Position.X, input.Position.Y
                     for _, d in ipairs(library.items:GetDescendants()) do
-                        if d.Name == "column" or (d:IsA("Frame") and d.Parent and d.Parent.Name == "\0" and d.AbsoluteSize.X > 80 and d.AbsoluteSize.Y > 80) then
+                        if d:IsA("Frame") and d.AbsoluteSize.X > 120 and d.AbsoluteSize.Y > 80 then
                             local p, s = d.AbsolutePosition, d.AbsoluteSize
                             if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
-                                dropCol = d
-                                break
+                                if d == home or (home and d.Parent == home.Parent) then
+                                    dropCol = d
+                                    break
+                                end
                             end
                         end
                     end
                 end)
-                items["outline"].Parent = dropCol or home
-                items["outline"].Size = dim2(1, 0, cfg.size, -3)
-                items["outline"].Position = dim2(0, 0, 0, 0)
+                if dropCol then
+                    items["outline"].Parent = dropCol
+                    items["outline"].Size = dim2(1, 0, cfg.size, -3)
+                    items["outline"].Position = dim2(0, 0, 0, 0)
+                end
+                -- else stays floating on _floatGui outside the menu
             end)
         end
 
@@ -2031,15 +2038,16 @@ function library:slider(options)
 
     items["value"] = library:create("TextBox", {
         FontFace = fonts.font,
-        TextColor3 = themes.preset.text,
+        TextColor3 = rgb(240, 240, 245),
         Text = tostring(cfg.default),
         Parent = items["slider"],
         Name = "\0",
-        Size = dim2(0, 0, 0, 16),
+        Size = dim2(0, 44, 0, 18),
         AutomaticSize = Enum.AutomaticSize.X,
-        Position = dim2(1, -8, 0, 1),
+        Position = dim2(1, -8, 0, 0),
         AnchorPoint = vec2(1, 0),
-        BackgroundColor3 = themes.preset.element,
+        BackgroundColor3 = themes.preset.light,
+        TextColor3 = rgb(255, 255, 255),
         TextXAlignment = Enum.TextXAlignment.Center,
         BorderSizePixel = 0,
         TextSize = 14,
@@ -3830,7 +3838,7 @@ function library:init_config(window)
     themeSec:label({ name = "Presets" })
 
     local presets = {
-        { name = "Default", color = rgb(155, 150, 219), bg = rgb(14, 14, 16), section = rgb(34, 34, 38), element = rgb(38, 38, 42), light = rgb(33, 33, 35) },
+        { name = "Default", color = rgb(155, 150, 219), bg = rgb(14, 14, 16), section = rgb(22, 22, 24), element = rgb(25, 25, 29), light = rgb(33, 33, 35) },
         { name = "Azure", color = rgb(96, 150, 255), bg = rgb(16, 20, 30), section = rgb(20, 25, 37), element = rgb(25, 31, 46), light = rgb(33, 41, 60) },
         { name = "Emerald", color = rgb(76, 214, 148), bg = rgb(14, 24, 20), section = rgb(18, 30, 25), element = rgb(23, 37, 31), light = rgb(30, 48, 40) },
         { name = "Ocean", color = rgb(72, 200, 214), bg = rgb(14, 23, 28), section = rgb(18, 28, 34), element = rgb(23, 35, 42), light = rgb(30, 45, 54) },
@@ -4746,17 +4754,9 @@ function library:Watermark(params)
             if not Items.Bar or not Items.Bar.Parent then
                 break
             end
-            FpsStat.Text = tostring(Frames * 2) .. " fps"
+            if FpsStat then FpsStat.Text = tostring(Frames * 2) .. " fps" end
             if UserStat then UserStat.Text = lp.DisplayName or lp.Name end
             Frames = 0
-
-            local Ping = 0
-            pcall(function()
-                local Stat = stats.Network.ServerStatsItem["Data Ping"]
-                Ping = floor(Stat:GetValue())
-            end)
-            PingStat.Text = tostring(Ping) .. " ms"
-            TimeStat.Text = os.date("%I:%M %p")
         end
     end)
 
@@ -6463,7 +6463,7 @@ function library.OpenSearch()
         if q == "" then return end
         local n = 0
         local seen = {}
-        local function add(name, inst, sub)
+        local function add(name, inst, sub, tab)
             name = tostring(name or "")
             if name == "" or seen[name] then return end
             if not string.find(string.lower(name), q, 1, true) then return end
@@ -6494,11 +6494,14 @@ function library.OpenSearch()
             })
             b.MouseButton1Click:Connect(function()
                 gui.Enabled = false
-                reveal(inst)
+                pcall(function()
+                    if tab and tab.open_tab then tab.open_tab() end
+                end)
+                task.defer(function() reveal(inst) end)
             end)
         end
         for _, item in ipairs(library._searchIndex or {}) do
-            add(item.name, item.inst, "Configs & Theme · Section")
+            add(item.name, item.inst, "Section", item.tab)
         end
         if library.items then
             for _, d in ipairs(library.items:GetDescendants()) do
