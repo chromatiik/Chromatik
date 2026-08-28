@@ -771,7 +771,11 @@ function library:window(properties)
 
         items["search_btn"] = library:create("TextButton", {
             Parent = items["side_frame"],
-            Text = "",
+            Text = "   Search",
+            TextXAlignment = Enum.TextXAlignment.Left,
+            FontFace = fonts.font,
+            TextSize = 14,
+            TextColor3 = themes.preset.dimtext,
             AutoButtonColor = false,
             BackgroundColor3 = themes.preset.element,
             Position = dim2(0, 10, 1, -40),
@@ -781,22 +785,14 @@ function library:window(properties)
         })
         library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-        library:create("ImageLabel", {
+        local sic = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
-            Size = dim2(0, 13, 0, 13), Position = dim2(0, 8, 0.5, -6),
+            Size = dim2(0, 14, 0, 14), Position = dim2(0, 8, 0.5, -7),
             ImageColor3 = themes.preset.dimtext, BorderSizePixel = 0,
+            Image = "rbxassetid://6031094678",
+            ZIndex = 9,
         })
-        pcall(function()
-            local ic = items["search_btn"]:FindFirstChildOfClass("ImageLabel")
-            if ic and ApplyIcon then ApplyIcon(ic, "search") end
-        end)
-        library:create("TextLabel", {
-            Parent = items["search_btn"], BackgroundTransparency = 1,
-            Position = dim2(0, 26, 0, 0), Size = dim2(1, -30, 1, 0),
-            FontFace = fonts.font, Text = "Search", TextSize = 14,
-            TextColor3 = themes.preset.dimtext, TextXAlignment = Enum.TextXAlignment.Left,
-            BorderSizePixel = 0,
-        })
+        pcall(function() if ApplyIcon then ApplyIcon(sic, "search") end end)
         items["search_btn"].MouseButton1Click:Connect(function()
             pcall(function() library.OpenSearch() end)
         end)
@@ -826,7 +822,7 @@ function library:window(properties)
             Parent = items["title"],
             AnchorPoint = vec2(0.5, 0.5),
             Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 36, 0, 36),
+            Size = dim2(0, 48, 0, 48),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             ImageColor3 = rgb(255, 255, 255),
@@ -1728,9 +1724,16 @@ function library.SnapSection(outline, mx, my)
         local loc = uis:GetMouseLocation()
         mx, my = loc.X, loc.Y
     end)
+    local host = library["items"] and library["items"]:FindFirstChild("main")
+    local function onMenu(col)
+        if not (col and col.Parent) then return false end
+        if col.AbsoluteSize.X < 40 or col.AbsoluteSize.Y < 20 then return false end
+        if host and not col:IsDescendantOf(host) then return false end
+        return col.Visible ~= false
+    end
     local best, bestA
     for _, col in ipairs(library._columns or {}) do
-        if col and col.Parent and col.AbsoluteSize.X > 40 then
+        if onMenu(col) then
             local p, s = col.AbsolutePosition, col.AbsoluteSize
             if mx >= p.X and mx <= p.X + s.X and my >= p.Y - 40 and my <= p.Y + s.Y + 80 then
                 local a = s.X * s.Y
@@ -1755,10 +1758,19 @@ function library.SnapSection(outline, mx, my)
     end
     if best then
         outline.Parent = best
-        outline.Size = dim2(1, 0, 0, outline.AbsoluteSize.Y)
+        local sy = tonumber(outline:GetAttribute("ScaleY")) or 0.5
+        outline.Size = dim2(1, 0, sy, -3)
         outline.Position = dim2(0, 0, 0, 0)
         library._lastColumn = best
+    elseif library._lastColumn and library._lastColumn.Parent then
+        outline.Parent = library._lastColumn
+        local sy = tonumber(outline:GetAttribute("ScaleY")) or 0.5
+        outline.Size = dim2(1, 0, sy, -3)
+        outline.Position = dim2(0, 0, 0, 0)
     end
+    pcall(function()
+        if library._snapGhost then library._snapGhost.Visible = false end
+    end)
 end
 
 function library.OpenSearch()
@@ -1833,6 +1845,7 @@ function library:section(properties)
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.element,
         })
+        pcall(function() items["outline"]:SetAttribute("ScaleY", cfg.size) end)
 
         library:create("UICorner", {
             Parent = items["outline"],
@@ -1922,9 +1935,15 @@ function library:section(properties)
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
                 dragging = true
                 library._sectionDragging = true
-                if not library._floatGui then
-                    library._floatGui = library:create("ScreenGui", { Parent = get_hui(), ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 12000 })
+                if not library._floatGui or not library._floatGui.Parent then
+                    library._floatGui = library:create("Frame", {
+                        Parent = library["items"],
+                        BackgroundTransparency = 1,
+                        Size = dim2(1, 0, 1, 0),
+                        ZIndex = 200,
+                    })
                 end
+                library._floatGui.Visible = true
                 local loc = uis:GetMouseLocation()
                 local abs, sz = items["outline"].AbsolutePosition, items["outline"].AbsoluteSize
                 items["outline"]:SetAttribute("GrabX", loc.X - abs.X)
@@ -1940,6 +1959,36 @@ function library:section(properties)
                 local gx = items["outline"]:GetAttribute("GrabX") or 0
                 local gy = items["outline"]:GetAttribute("GrabY") or 0
                 items["outline"].Position = dim2(0, loc.X - gx, 0, loc.Y - gy)
+                pcall(function()
+                    local best
+                    local host = items["main"] or (library["items"] and library["items"]:FindFirstChildWhichIsA("Frame"))
+                    local nearest, nd
+                    for _, col in ipairs(library._columns or {}) do
+                        if col and col.Parent and col.AbsoluteSize.X > 40 then
+                            local p, s = col.AbsolutePosition, col.AbsoluteSize
+                            local cx, cy = p.X + s.X/2, p.Y + s.Y/2
+                            local d = (loc.X-cx)^2 + (loc.Y-cy)^2
+                            if not nd or d < nd then nearest, nd, best = col, d, col end
+                        end
+                    end
+                    if best then
+                        local p, s = best.AbsolutePosition, best.AbsoluteSize
+                        local h = items["outline"].AbsoluteSize.Y
+                        if not library._snapGhost or not library._snapGhost.Parent then
+                            library._snapGhost = library:create("Frame", {
+                                Parent = library._floatGui,
+                                BackgroundColor3 = rgb(120,120,140),
+                                BackgroundTransparency = 0.5,
+                                BorderSizePixel = 0,
+                                ZIndex = 199,
+                            })
+                            library:create("UICorner", { Parent = library._snapGhost, CornerRadius = dim(0, 7) })
+                        end
+                        library._snapGhost.Visible = true
+                        library._snapGhost.Position = dim2(0, p.X + 4, 0, p.Y + 8)
+                        library._snapGhost.Size = dim2(0, math.max(40, s.X - 8), 0, h)
+                    end
+                end)
             end)
             uis.InputEnded:Connect(function(input)
                 if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
@@ -6184,7 +6233,7 @@ function library:PlayerCard(params)
     local avHolder = library:create("Frame", {
         Parent = panel,
         Position = dim2(0, 12, 0, 12),
-        Size = dim2(0, 36, 0, 36),
+        Size = dim2(0, 48, 0, 48),
         BackgroundColor3 = themes.preset.light,
         BorderSizePixel = 0,
         ZIndex = 71,
