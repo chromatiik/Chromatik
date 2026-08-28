@@ -785,13 +785,14 @@ function library:window(properties)
             Thickness = 1,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
+        library:create("UIPadding", { Parent = items["search_btn"], PaddingLeft = dim(0, 30) })
         local sicon = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
             Size = dim2(0, 14, 0, 14), Position = dim2(0, 8, 0.5, -7),
             ImageColor3 = themes.preset.dimtext, ZIndex = 9, BorderSizePixel = 0,
         })
         pcall(function() ApplyIcon(sicon, "search") end)
-        items["search_btn"].Text = "     Search"
+        items["search_btn"].Text = "Search"
         items["search_btn"].MouseButton1Click:Connect(function()
             if library.OpenSearch then library.OpenSearch() end
         end)
@@ -1581,6 +1582,9 @@ end
 
 function library:column(properties)
     properties = properties or {}
+    if self and self.open_tab then
+        library._buildingTab = self
+    end
 
     local sub = properties.tab or properties.Tab
     local parent_frame = nil
@@ -1688,7 +1692,14 @@ function library:section(properties)
             CornerRadius = dim(0, 7),
         })
         library._searchIndex = library._searchIndex or {}
-        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = library._buildingTab or self })
+        do
+            local tb = library._buildingTab
+            if tb and tb.open_tab then
+                library._tabByName = library._tabByName or {}
+                library._tabByName[tb.name or "?"] = tb
+            end
+            table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = tb, tabName = tb and tb.name })
+        end
         -- drag from header; can leave the menu
         do
             if not library._floatGui then
@@ -1735,22 +1746,32 @@ function library:section(properties)
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
                 local mx, my = input.Position.X, input.Position.Y
                 local dropCol
-                pcall(function()
-                    for _, d in ipairs(library.items:GetDescendants()) do
-                        if d:IsA("Frame") and d.AbsoluteSize.X > 120 and d.AbsoluteSize.Y > 80 then
-                            local p, s = d.AbsolutePosition, d.AbsoluteSize
-                            if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
-                                if d == home or (home and d.Parent == home.Parent) then
-                                    dropCol = d
-                                    break
-                                end
+                local best = -1
+                for _, col in ipairs(library._columns or {}) do
+                    if col and col.Parent then
+                        local p, s = col.AbsolutePosition, col.AbsoluteSize
+                        if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
+                            local area = s.X * s.Y
+                            if area > best then
+                                best = area
+                                dropCol = col
                             end
                         end
                     end
-                end)
+                end
                 if dropCol then
+                    -- order among siblings by drop Y
+                    local order = 0
+                    for _, sib in ipairs(dropCol:GetChildren()) do
+                        if sib:IsA("Frame") and sib ~= items["outline"] then
+                            if sib.AbsolutePosition.Y + sib.AbsoluteSize.Y * 0.5 < my then
+                                order = math.max(order, (sib.LayoutOrder or 0) + 1)
+                            end
+                        end
+                    end
                     items["outline"].Parent = dropCol
-                    items["outline"].Size = dim2(1, 0, cfg.size, -3)
+                    items["outline"].LayoutOrder = order
+                    items["outline"].Size = dim2(1, 0, 0, math.max(120, items["outline"].AbsoluteSize.Y))
                     items["outline"].Position = dim2(0, 0, 0, 0)
                 end
                 -- else stays floating on _floatGui outside the menu
@@ -1862,20 +1883,31 @@ function library:section(properties)
                 dragging = false
                 if ghost then pcall(function() ghost:Destroy() end) ghost = nil end
                 local mx, my = input.Position.X, input.Position.Y
-                local drop
+                local drop, best = nil, 1e18
                 for _, col in ipairs(library._columns or {}) do
-                    if col and col.Parent and col.AbsoluteSize.X > 20 then
+                    if col and col.Parent and col.Visible and col.AbsoluteSize.X > 20 then
                         local p, s = col.AbsolutePosition, col.AbsoluteSize
                         if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
-                            drop = col
-                            break
+                            local area = s.X * s.Y
+                            if area < best then
+                                best = area
+                                drop = col
+                            end
                         end
                     end
                 end
                 if drop then
+                    local order = 0
+                    for _, sib in ipairs(drop:GetChildren()) do
+                        if sib:IsA("Frame") and sib ~= items["outline"] then
+                            if (sib.AbsolutePosition.Y + sib.AbsoluteSize.Y * 0.5) < my then
+                                order = math.max(order, (tonumber(sib.LayoutOrder) or 0) + 1)
+                            end
+                        end
+                    end
                     items["outline"].Parent = drop
+                    items["outline"].LayoutOrder = order
                     items["outline"].Size = dim2(1, 0, 0, math.max(items["outline"].AbsoluteSize.Y, 80))
-                    items["outline"].AutomaticSize = Enum.AutomaticSize.Y
                     items["outline"].Position = dim2(0, 0, 0, 0)
                 end
             end)
@@ -6615,22 +6647,19 @@ function library.OpenSearch()
             })
             b.MouseButton1Click:Connect(function()
                 hide()
-                pcall(function()
-                    local use = tab
-                    if not (use and use.open_tab) then
-                        for _, tb in ipairs(library._tabs or {}) do
-                            local holder = tb.items and (tb.items["tab_holder"] or tb.items["page"] or tb.items["tab_parent"])
-                            if holder and inst and inst:IsDescendantOf(holder) then
-                                use = tb
-                                break
-                            end
+                local use = tab
+                if not (use and use.open_tab) then
+                    for _, item in ipairs(library._searchIndex or {}) do
+                        if item.inst == inst and item.tab and item.tab.open_tab then
+                            use = item.tab
+                            break
                         end
                     end
-                    if use and use.open_tab then
-                        use.open_tab()
-                    end
+                end
+                pcall(function()
+                    if use and use.open_tab then use.open_tab() end
                 end)
-                task.delay(0.12, function() reveal(inst) end)
+                task.delay(0.15, function() reveal(inst) end)
             end)
         end
         for _, item in ipairs(library._searchIndex or {}) do
