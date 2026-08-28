@@ -1270,6 +1270,17 @@ function library:window(properties)
         if items["main"] then items["main"].Visible = true end
     end)
 
+    library:connection(uis.InputChanged, function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseWheel then return end
+        if not (library["items"] and library["items"].Enabled) then return end
+        local th = library.selected_tab and library.selected_tab[4]
+        if not (th and th:IsA("ScrollingFrame")) then return end
+        local y = th.CanvasPosition.Y - input.Position.Z * 48
+        if y < 0 then y = 0 end
+        th.CanvasPosition = Vector2.new(0, y)
+        pcall(library.RefreshPageScroll)
+    end)
+
     library:connection(uis.InputBegan, function(input, gpe)
         if gpe then return end
         if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
@@ -1670,8 +1681,8 @@ function library:column(properties)
     local count_key = sub or 0
     self._column_counts = self._column_counts or {}
     self._column_counts[count_key] = (self._column_counts[count_key] or 0) + 1
-    if self._column_counts[count_key] > 2 then
-        warn("[Chromatik] Max 2 sections/columns allowed per tab — extra column ignored.")
+    if self._column_counts[count_key] > 8 then
+        warn("[Chromatik] Max columns reached — extra column ignored.")
         local dummy = { items = { column = Instance.new("Frame") } }
         dummy.items.column.Parent = nil
         return setmetatable(dummy, library)
@@ -1784,16 +1795,22 @@ function library._updateGhost(col, height)
     library._snapGhost.Parent = library["items"]
     local ap, asz = col.AbsolutePosition, col.AbsoluteSize
     local yOff = 4
-    for _, ch in ipairs(col:GetChildren()) do
-        if ch:IsA("Frame") and ch.Visible and ch.AbsoluteSize.Y > 24 and ch.AbsoluteSize.Y < 800 then
-            local rel = (ch.AbsolutePosition.Y - ap.Y) + ch.AbsoluteSize.Y + 7
-            if rel > yOff and rel < asz.Y then yOff = rel end
+    local lay = col:FindFirstChildWhichIsA("UIListLayout")
+    if lay and lay.AbsoluteContentSize.Y > 0 then
+        yOff = lay.AbsoluteContentSize.Y + 6
+    else
+        for _, ch in ipairs(col:GetChildren()) do
+            if ch:IsA("Frame") and ch.Visible and ch.AbsoluteSize.Y > 24 and ch.AbsoluteSize.Y < 900 then
+                local rel = (ch.AbsolutePosition.Y - ap.Y) + ch.AbsoluteSize.Y + 7
+                if rel > yOff then yOff = rel end
+            end
         end
     end
-    local h = math.clamp(height or 120, 50, math.max(50, asz.Y - yOff - 6))
+    local h = math.clamp(height or 140, 70, 400)
     library._snapGhost.Visible = true
-    library._snapGhost.Position = UDim2.fromOffset(ap.X + 6, ap.Y + yOff)
-    library._snapGhost.Size = UDim2.fromOffset(math.max(50, asz.X - 12), h)
+    library._snapGhost.ZIndex = 500
+    library._snapGhost.Position = UDim2.fromOffset(ap.X + 4, ap.Y + yOff)
+    library._snapGhost.Size = UDim2.fromOffset(math.max(50, asz.X - 8), h)
 end
 
 
