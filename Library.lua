@@ -771,7 +771,7 @@ function library:window(properties)
 
         items["search_btn"] = library:create("TextButton", {
             Parent = items["side_frame"],
-            Text = "   Search",
+            Text = "",
             TextXAlignment = Enum.TextXAlignment.Left,
             FontFace = fonts.font,
             TextSize = 14,
@@ -793,6 +793,13 @@ function library:window(properties)
             ZIndex = 9,
         })
         pcall(function() if ApplyIcon then ApplyIcon(sic, "search") end end)
+        library:create("TextLabel", {
+            Parent = items["search_btn"], BackgroundTransparency = 1,
+            Position = dim2(0, 26, 0, 0), Size = dim2(1, -32, 1, 0),
+            FontFace = fonts.font, Text = "Search", TextSize = 14,
+            TextColor3 = themes.preset.dimtext, TextXAlignment = Enum.TextXAlignment.Left,
+            BorderSizePixel = 0, ZIndex = 9,
+        })
         items["search_btn"].MouseButton1Click:Connect(function()
             pcall(function() library.OpenSearch() end)
         end)
@@ -1765,11 +1772,18 @@ function library._updateGhost(col, height)
         library:create("UICorner", { Parent = library._snapGhost, CornerRadius = dim(0, 7) })
     end
     library._snapGhost.Parent = parent
-    local p, s = col.AbsolutePosition, col.AbsoluteSize
-    local h = math.clamp(height or 120, 60, math.max(80, s.Y - 8))
+    local ap, asz = col.AbsolutePosition, col.AbsoluteSize
+    local yOff = 6
+    for _, ch in ipairs(col:GetChildren()) do
+        if ch:IsA("GuiObject") and ch.Visible and ch.Name ~= "UIListLayout" and ch.Name ~= "UIPadding" then
+            local rel = (ch.AbsolutePosition.Y - ap.Y) + ch.AbsoluteSize.Y + 6
+            if rel > yOff then yOff = rel end
+        end
+    end
+    local h = math.clamp(height or 120, 50, math.max(50, asz.Y - yOff - 6))
     library._snapGhost.Visible = true
-    library._snapGhost.Position = UDim2.fromOffset(p.X + 6, p.Y + 6)
-    library._snapGhost.Size = UDim2.fromOffset(math.max(50, s.X - 12), h)
+    library._snapGhost.Position = UDim2.fromOffset(ap.X + 6, ap.Y + yOff)
+    library._snapGhost.Size = UDim2.fromOffset(math.max(50, asz.X - 12), h)
 end
 
 function library.SnapSection(outline, mx, my)
@@ -1778,7 +1792,14 @@ function library.SnapSection(outline, mx, my)
         local loc = uis:GetMouseLocation()
         mx, my = loc.X, loc.Y
     end)
-    local best = library._bestColumn(mx, my)
+    local best
+    for _, col in ipairs(library._visibleColumns()) do
+        local p, s = col.AbsolutePosition, col.AbsoluteSize
+        if mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y then
+            best = col
+            break
+        end
+    end
     if best then
         outline.Parent = best
         local sy = tonumber(outline:GetAttribute("ScaleY")) or 0.5
@@ -1814,7 +1835,7 @@ function library.OpenSearch()
     })
     local main = host and host:FindFirstChild("main")
     local box = library:create("Frame", {
-        Parent = gui,
+        Parent = main or gui,
         AnchorPoint = vec2(0.5, 0.5),
         Position = dim2(0.5, 0, 0.5, 0),
         Size = dim2(0, 380, 0, 320),
