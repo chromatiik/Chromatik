@@ -1589,6 +1589,8 @@ function library:tab(properties)
 
         items["tab_holder"].Visible = true
         items["tab_holder"].Parent = self.items["main"]
+        items["tab_holder"].ScrollingEnabled = true
+        task.defer(function() pcall(library.RefreshPageScroll) end)
         items["multi_section_button_holder"].Visible = true
         items["multi_section_button_holder"].Parent = self.items["multi_holder"]
 
@@ -1792,6 +1794,42 @@ function library._updateGhost(col, height)
     library._snapGhost.Size = UDim2.fromOffset(math.max(50, asz.X - 12), h)
 end
 
+
+function library.RefreshPageScroll()
+    local th
+    pcall(function()
+        if library.selected_tab and library.selected_tab[4] and library.selected_tab[4]:IsA("ScrollingFrame") then
+            th = library.selected_tab[4]
+        end
+    end)
+    if not th then
+        for _, col in ipairs(library._columns or {}) do
+            if col and col.Parent and col.Parent:IsA("ScrollingFrame") and col.Parent.Visible then
+                th = col.Parent
+                break
+            end
+        end
+    end
+    if not (th and th:IsA("ScrollingFrame")) then return end
+    local maxH = 0
+    for _, col in ipairs(th:GetChildren()) do
+        if col:IsA("GuiObject") and col.Visible then
+            local h = 0
+            for _, ch in ipairs(col:GetChildren()) do
+                if ch:IsA("GuiObject") and ch.AbsoluteSize.Y > 8 then
+                    h = h + ch.AbsoluteSize.Y + 8
+                end
+            end
+            if col.AbsoluteSize.Y > h then h = col.AbsoluteSize.Y end
+            if h > maxH then maxH = h end
+        end
+    end
+    th.AutomaticCanvasSize = Enum.AutomaticSize.None
+    th.CanvasSize = dim2(0, 0, 0, math.max(maxH + 24, th.AbsoluteSize.Y))
+    th.ScrollingEnabled = true
+    th.Active = true
+end
+
 function library.SnapSection(outline, mx, my)
     if not outline then return end
     pcall(function()
@@ -1963,6 +2001,14 @@ function library:section(properties)
             BackgroundColor3 = themes.preset.element,
         })
         pcall(function() items["outline"]:SetAttribute("ScaleY", cfg.size) end)
+        task.defer(function()
+            pcall(library.RefreshPageScroll)
+        end)
+        pcall(function()
+            items["outline"]:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                pcall(library.RefreshPageScroll)
+            end)
+        end)
 
         library:create("UICorner", {
             Parent = items["outline"],
