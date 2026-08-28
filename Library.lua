@@ -296,6 +296,33 @@ local function ApplyIcon(Object, Icon)
     Object.Image = Image
 end
 
+function library.LoadEmblemLogo()
+    if library._logoAsset then return library._logoAsset end
+    task.spawn(function()
+        pcall(function()
+            local data = game:HttpGet("https://raw.githubusercontent.com/chromatiik/emblem/main/public/emblem.png")
+            if type(data) == "string" and #data > 80 then
+                pcall(function()
+                    if makefolder then makefolder("Emblem") end
+                    writefile("Emblem/logo.png", data)
+                end)
+                local ok, id = pcall(function() return getcustomasset("Emblem/logo.png") end)
+                if ok and id then
+                    library._logoAsset = id
+                    pcall(function()
+                        if library._logoTargets then
+                            for _, img in ipairs(library._logoTargets) do
+                                if img then img.Image = id img.ImageColor3 = Color3.fromRGB(255,255,255) end
+                            end
+                        end
+                    end)
+                end
+            end
+        end)
+    end)
+    return library._logoAsset
+end
+
 function library:tween(obj, properties, easing_style, time)
     local tween = tween_service:Create(
         obj,
@@ -725,17 +752,55 @@ function library:window(properties)
             BackgroundColor3 = themes.preset.line,
         })
 
-        items["button_holder"] = library:create("Frame", {
+        items["button_holder"] = library:create("ScrollingFrame", {
             Parent = items["side_frame"],
             Name = "\0",
             BackgroundTransparency = 1,
             Position = dim2(0, 0, 0, 60),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 1, -60),
+            Size = dim2(1, 0, 1, -108),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            CanvasSize = dim2(0, 0, 0, 0),
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = rgb(60, 60, 66),
+            Active = true,
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
         cfg.button_holder = items["button_holder"]
+
+        items["search_btn"] = library:create("TextButton", {
+            Parent = items["side_frame"],
+            Text = "",
+            AutoButtonColor = false,
+            BackgroundColor3 = themes.preset.element,
+            Position = dim2(0, 10, 1, -40),
+            Size = dim2(1, -20, 0, 28),
+            BorderSizePixel = 0,
+            ZIndex = 8,
+        })
+        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
+        library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+        library:create("ImageLabel", {
+            Parent = items["search_btn"], BackgroundTransparency = 1,
+            Size = dim2(0, 13, 0, 13), Position = dim2(0, 8, 0.5, -6),
+            ImageColor3 = themes.preset.dimtext, BorderSizePixel = 0,
+        })
+        pcall(function()
+            local ic = items["search_btn"]:FindFirstChildOfClass("ImageLabel")
+            if ic and ApplyIcon then ApplyIcon(ic, "search") end
+        end)
+        library:create("TextLabel", {
+            Parent = items["search_btn"], BackgroundTransparency = 1,
+            Position = dim2(0, 26, 0, 0), Size = dim2(1, -30, 1, 0),
+            FontFace = fonts.font, Text = "Search", TextSize = 14,
+            TextColor3 = themes.preset.dimtext, TextXAlignment = Enum.TextXAlignment.Left,
+            BorderSizePixel = 0,
+        })
+        items["search_btn"].MouseButton1Click:Connect(function()
+            pcall(function() library.OpenSearch() end)
+        end)
+
 
         library:create("UIListLayout", {
             Parent = items["button_holder"],
@@ -769,6 +834,12 @@ function library:window(properties)
         })
         pcall(function()
             if ApplyIcon then ApplyIcon(items["title_icon"], cfg.icon or "layers") end
+        end)
+        library._logoTargets = library._logoTargets or {}
+        table.insert(library._logoTargets, items["title_icon"])
+        pcall(function()
+            local id = library.LoadEmblemLogo and library.LoadEmblemLogo()
+            if id then items["title_icon"].Image = id items["title_icon"].ImageColor3 = rgb(255,255,255) end
         end)
 
         items["multi_holder"] = library:create("Frame", {
@@ -993,9 +1064,10 @@ function library:window(properties)
             AnchorPoint = vec2(0, 1),
             Parent = items["main"],
             Name = "\0",
+            Visible = false,
             Position = dim2(0, 0, 1, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 0, 25),
+            Size = dim2(1, 0, 0, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(23, 23, 25),
         })
@@ -1227,7 +1299,7 @@ function library:tab(properties)
             BackgroundTransparency = 1,
             Position = dim2(0, 196, 0, 56),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -216, 1, -101),
+            Size = dim2(1, -208, 1, -64),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1562,6 +1634,8 @@ end
 
 function library:column(properties)
     properties = properties or {}
+    library._buildingTab = self._emblemTab or (self.open_tab and self) or library._buildingTab
+    library._buildingPage = (self.open_page and self) or library._buildingPage
 
     local sub = properties.tab or properties.Tab
     local parent_frame = nil
@@ -1613,6 +1687,13 @@ function library:column(properties)
         FillDirection = Enum.FillDirection.Vertical,
         SortOrder = Enum.SortOrder.LayoutOrder,
     })
+    library._columns = library._columns or {}
+    if items["column"] then
+        table.insert(library._columns, items["column"])
+        library._lastColumn = items["column"]
+    end
+    cfg._emblemTab = library._buildingTab
+    cfg._emblemPage = library._buildingPage
     return setmetatable(cfg, library)
 end
 
@@ -1638,6 +1719,97 @@ function library:sub_tab(properties)
         SortOrder = Enum.SortOrder.LayoutOrder,
     })
     return setmetatable(cfg, library)
+end
+
+
+function library.SnapSection(outline, mx, my)
+    if not outline then return end
+    pcall(function()
+        local loc = uis:GetMouseLocation()
+        mx, my = loc.X, loc.Y
+    end)
+    local best, bestA
+    for _, col in ipairs(library._columns or {}) do
+        if col and col.Parent and col.AbsoluteSize.X > 40 then
+            local p, s = col.AbsolutePosition, col.AbsoluteSize
+            if mx >= p.X and mx <= p.X + s.X and my >= p.Y - 40 and my <= p.Y + s.Y + 80 then
+                local a = s.X * s.Y
+                if not bestA or a < bestA then best, bestA = col, a end
+            end
+        end
+    end
+    if not best then
+        local nearest, nd
+        for _, col in ipairs(library._columns or {}) do
+            if col and col.Parent and col.Visible then
+                local p, s = col.AbsolutePosition, col.AbsoluteSize
+                local cx, cy = p.X + s.X/2, p.Y + s.Y/2
+                local d = (mx-cx)^2 + (my-cy)^2
+                if not nd or d < nd then nearest, nd = col, d end
+            end
+        end
+        best = nearest
+    end
+    if not best then
+        if library._lastColumn then best = library._lastColumn end
+    end
+    if best then
+        outline.Parent = best
+        outline.Size = dim2(1, 0, 0, outline.AbsoluteSize.Y)
+        outline.Position = dim2(0, 0, 0, 0)
+        library._lastColumn = best
+    end
+end
+
+function library.OpenSearch()
+    library._searchIndex = library._searchIndex or {}
+    if library._searchGui and library._searchGui.Parent then library._searchGui:Destroy() end
+    local gui = library:create("ScreenGui", { Parent = get_hui(), ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 20000, ZIndexBehavior = Enum.ZIndexBehavior.Global })
+    library._searchGui = gui
+    local dimmer = library:create("TextButton", { Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(0,0,0), BackgroundTransparency = 0.45, Text = "", AutoButtonColor = false })
+    local box = library:create("Frame", { Parent = gui, AnchorPoint = vec2(0.5,0.5), Position = dim2(0.5,0,0.5,0), Size = dim2(0, 360, 0, 280), BackgroundColor3 = themes.preset.inline, BorderSizePixel = 0 })
+    library:create("UICorner", { Parent = box, CornerRadius = dim(0, 10) })
+    local input = library:create("TextBox", { Parent = box, Position = dim2(0,12,0,12), Size = dim2(1,-24,0,32), BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, FontFace = fonts.font, Text = "", PlaceholderText = "Search", TextColor3 = themes.preset.text, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left })
+    library:create("UICorner", { Parent = input, CornerRadius = dim(0, 6) })
+    library:create("UIPadding", { Parent = input, PaddingLeft = dim(0, 10) })
+    local list = library:create("ScrollingFrame", { Parent = box, Position = dim2(0,12,0,52), Size = dim2(1,-24,1,-64), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = dim2(0,0,0,0) })
+    library:create("UIListLayout", { Parent = list, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+    local function render(q)
+        for _, c in ipairs(list:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+        q = tostring(q or ""):lower()
+        local n = 0
+        for _, item in ipairs(library._searchIndex) do
+            if n >= 40 then break end
+            local name = tostring(item.name or "")
+            if q == "" or name:lower():find(q, 1, true) then
+                n += 1
+                local b = library:create("TextButton", { Parent = list, Size = dim2(1,0,0,28), BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, Text = "  " .. name, FontFace = fonts.font, TextSize = 13, TextColor3 = themes.preset.text, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false })
+                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 5) })
+                b.MouseButton1Click:Connect(function()
+                    pcall(function()
+                        if item.tab and item.tab.open_tab then item.tab.open_tab() end
+                        if item.page and item.page.open_page then item.page.open_page() end
+                    end)
+                    task.delay(0.15, function()
+                        pcall(function()
+                            local inst = item.inst
+                            if inst and inst.Parent then
+                                local old = inst.BackgroundColor3
+                                inst.BackgroundColor3 = themes.preset.accent
+                                task.wait(0.7)
+                                inst.BackgroundColor3 = old
+                            end
+                        end)
+                    end)
+                    pcall(function() gui:Destroy() end)
+                end)
+            end
+        end
+    end
+    input:GetPropertyChangedSignal("Text"):Connect(function() render(input.Text) end)
+    dimmer.MouseButton1Click:Connect(function() pcall(function() gui:Destroy() end) end)
+    render("")
+    task.defer(function() input:CaptureFocus() end)
 end
 
 function library:section(properties)
@@ -1740,6 +1912,43 @@ function library:section(properties)
             Parent = items["button"],
             CornerRadius = dim(0, 7),
         })
+
+        library._searchIndex = library._searchIndex or {}
+        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = library._buildingTab, page = library._buildingPage })
+
+        do
+            local dragging = false
+            items["button"].InputBegan:Connect(function(input)
+                if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+                dragging = true
+                library._sectionDragging = true
+                if not library._floatGui then
+                    library._floatGui = library:create("ScreenGui", { Parent = get_hui(), ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 12000 })
+                end
+                local loc = uis:GetMouseLocation()
+                local abs, sz = items["outline"].AbsolutePosition, items["outline"].AbsoluteSize
+                items["outline"]:SetAttribute("GrabX", loc.X - abs.X)
+                items["outline"]:SetAttribute("GrabY", loc.Y - abs.Y)
+                items["outline"].Parent = library._floatGui
+                items["outline"].Size = dim2(0, sz.X, 0, sz.Y)
+                items["outline"].Position = dim2(0, loc.X - (loc.X - abs.X), 0, loc.Y - (loc.Y - abs.Y))
+            end)
+            uis.InputChanged:Connect(function(input)
+                if not dragging then return end
+                if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
+                local loc = uis:GetMouseLocation()
+                local gx = items["outline"]:GetAttribute("GrabX") or 0
+                local gy = items["outline"]:GetAttribute("GrabY") or 0
+                items["outline"].Position = dim2(0, loc.X - gx, 0, loc.Y - gy)
+            end)
+            uis.InputEnded:Connect(function(input)
+                if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+                dragging = false
+                library._sectionDragging = false
+                local loc = uis:GetMouseLocation()
+                library.SnapSection(items["outline"], loc.X, loc.Y)
+            end)
+        end
 
         items["Icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.accent,
@@ -4617,6 +4826,12 @@ function library:Watermark(params)
         ScaleType = Enum.ScaleType.Fit,
     })
     iconLabel.LayoutOrder = NextOrder()
+    library._logoTargets = library._logoTargets or {}
+    table.insert(library._logoTargets, iconLabel)
+    pcall(function()
+        local id = library.LoadEmblemLogo and library.LoadEmblemLogo()
+        if id then iconLabel.Image = id iconLabel.ImageColor3 = rgb(255,255,255) end
+    end)
     ApplyIcon(iconLabel, Icon)
 
     local function Separator()
