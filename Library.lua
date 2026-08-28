@@ -1718,97 +1718,176 @@ function library:sub_tab(properties)
 end
 
 
+function library._visibleColumns()
+    local out = {}
+    local items = library["items"]
+    local main = items and (items:FindFirstChild("main") or items:FindFirstChildWhichIsA("Frame"))
+    for _, col in ipairs(library._columns or {}) do
+        if col and col.Parent and col.Visible ~= false and col.AbsoluteSize.X > 50 and col.AbsoluteSize.Y > 40 then
+            if (not main) or col:IsDescendantOf(main) then
+                -- skip columns that are off-screen / cached
+                if col.AbsolutePosition.Y > 0 and col.AbsoluteSize.Y < 2000 then
+                    table.insert(out, col)
+                end
+            end
+        end
+    end
+    return out
+end
+
+function library._bestColumn(mx, my)
+    local best, bestD
+    for _, col in ipairs(library._visibleColumns()) do
+        local p, s = col.AbsolutePosition, col.AbsoluteSize
+        local inside = mx >= p.X and mx <= p.X + s.X and my >= p.Y and my <= p.Y + s.Y
+        local cx, cy = p.X + s.X * 0.5, p.Y + s.Y * 0.5
+        local d = (mx - cx) * (mx - cx) + (my - cy) * (my - cy)
+        if inside then d = d * 0.15 end
+        if not bestD or d < bestD then best, bestD = col, d end
+    end
+    return best
+end
+
+function library._updateGhost(col, height)
+    if not col then
+        if library._snapGhost then library._snapGhost.Visible = false end
+        return
+    end
+    local parent = library._floatGui or library["items"]
+    if not library._snapGhost or not library._snapGhost.Parent then
+        library._snapGhost = library:create("Frame", {
+            Parent = parent,
+            BackgroundColor3 = rgb(110, 110, 128),
+            BackgroundTransparency = 0.45,
+            BorderSizePixel = 0,
+            ZIndex = 250,
+        })
+        library:create("UICorner", { Parent = library._snapGhost, CornerRadius = dim(0, 7) })
+    end
+    library._snapGhost.Parent = parent
+    local p, s = col.AbsolutePosition, col.AbsoluteSize
+    local h = math.clamp(height or 120, 60, math.max(80, s.Y - 8))
+    library._snapGhost.Visible = true
+    library._snapGhost.Position = UDim2.fromOffset(p.X + 6, p.Y + 6)
+    library._snapGhost.Size = UDim2.fromOffset(math.max(50, s.X - 12), h)
+end
+
 function library.SnapSection(outline, mx, my)
     if not outline then return end
     pcall(function()
         local loc = uis:GetMouseLocation()
         mx, my = loc.X, loc.Y
     end)
-    local host = library["items"] and library["items"]:FindFirstChild("main")
-    local function onMenu(col)
-        if not (col and col.Parent) then return false end
-        if col.AbsoluteSize.X < 40 or col.AbsoluteSize.Y < 20 then return false end
-        if host and not col:IsDescendantOf(host) then return false end
-        return col.Visible ~= false
-    end
-    local best, bestA
-    for _, col in ipairs(library._columns or {}) do
-        if onMenu(col) then
-            local p, s = col.AbsolutePosition, col.AbsoluteSize
-            if mx >= p.X and mx <= p.X + s.X and my >= p.Y - 40 and my <= p.Y + s.Y + 80 then
-                local a = s.X * s.Y
-                if not bestA or a < bestA then best, bestA = col, a end
-            end
-        end
-    end
-    if not best then
-        local nearest, nd
-        for _, col in ipairs(library._columns or {}) do
-            if col and col.Parent and col.Visible then
-                local p, s = col.AbsolutePosition, col.AbsoluteSize
-                local cx, cy = p.X + s.X/2, p.Y + s.Y/2
-                local d = (mx-cx)^2 + (my-cy)^2
-                if not nd or d < nd then nearest, nd = col, d end
-            end
-        end
-        best = nearest
-    end
-    if not best then
-        if library._lastColumn then best = library._lastColumn end
-    end
+    local best = library._bestColumn(mx, my)
     if best then
         outline.Parent = best
         local sy = tonumber(outline:GetAttribute("ScaleY")) or 0.5
-        outline.Size = dim2(1, 0, sy, -3)
+        sy = math.clamp(sy, 0.28, 0.62)
+        outline.Size = dim2(1, 0, sy, -6)
         outline.Position = dim2(0, 0, 0, 0)
         library._lastColumn = best
-    elseif library._lastColumn and library._lastColumn.Parent then
-        outline.Parent = library._lastColumn
-        local sy = tonumber(outline:GetAttribute("ScaleY")) or 0.5
-        outline.Size = dim2(1, 0, sy, -3)
-        outline.Position = dim2(0, 0, 0, 0)
+    else
+        -- keep floating on the menu overlay so it never vanishes
+        if library._floatGui then
+            outline.Parent = library._floatGui
+        end
     end
-    pcall(function()
-        if library._snapGhost then library._snapGhost.Visible = false end
-    end)
+    if library._snapGhost then library._snapGhost.Visible = false end
 end
 
 function library.OpenSearch()
     library._searchIndex = library._searchIndex or {}
-    if library._searchGui and library._searchGui.Parent then library._searchGui:Destroy() end
-    local gui = library:create("ScreenGui", { Parent = get_hui(), ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 20000, ZIndexBehavior = Enum.ZIndexBehavior.Global })
+    if library._searchGui and library._searchGui.Parent then
+        library._searchGui:Destroy()
+    end
+    local host = library["items"]
+    local gui = library:create("Frame", {
+        Parent = host,
+        Size = dim2(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ZIndex = 400,
+    })
     library._searchGui = gui
-    local dimmer = library:create("TextButton", { Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(0,0,0), BackgroundTransparency = 0.45, Text = "", AutoButtonColor = false })
-    local box = library:create("Frame", { Parent = gui, AnchorPoint = vec2(0.5,0.5), Position = dim2(0.5,0,0.5,0), Size = dim2(0, 360, 0, 280), BackgroundColor3 = themes.preset.inline, BorderSizePixel = 0 })
-    library:create("UICorner", { Parent = box, CornerRadius = dim(0, 10) })
-    local input = library:create("TextBox", { Parent = box, Position = dim2(0,12,0,12), Size = dim2(1,-24,0,32), BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, FontFace = fonts.font, Text = "", PlaceholderText = "Search", TextColor3 = themes.preset.text, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left })
-    library:create("UICorner", { Parent = input, CornerRadius = dim(0, 6) })
-    library:create("UIPadding", { Parent = input, PaddingLeft = dim(0, 10) })
-    local list = library:create("ScrollingFrame", { Parent = box, Position = dim2(0,12,0,52), Size = dim2(1,-24,1,-64), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = dim2(0,0,0,0) })
-    library:create("UIListLayout", { Parent = list, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+    local dimmer = library:create("TextButton", {
+        Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(0,0,0),
+        BackgroundTransparency = 0.35, Text = "", AutoButtonColor = false, ZIndex = 400,
+    })
+    local main = host and host:FindFirstChild("main")
+    local box = library:create("Frame", {
+        Parent = gui,
+        AnchorPoint = vec2(0.5, 0.5),
+        Position = dim2(0.5, 0, 0.5, 0),
+        Size = dim2(0, 380, 0, 320),
+        BackgroundColor3 = rgb(22, 22, 26),
+        BorderSizePixel = 0,
+        ZIndex = 401,
+    })
+    library:create("UICorner", { Parent = box, CornerRadius = dim(0, 12) })
+    library:create("UIStroke", { Parent = box, Color = rgb(48,48,54), Thickness = 1 })
+    local title = library:create("TextLabel", {
+        Parent = box, BackgroundTransparency = 1, Position = dim2(0, 16, 0, 10),
+        Size = dim2(1, -40, 0, 22), FontFace = fonts.font, Text = "Search",
+        TextSize = 16, TextColor3 = rgb(255,255,255), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 402,
+    })
+    local close = library:create("TextButton", {
+        Parent = box, Position = dim2(1, -28, 0, 10), Size = dim2(0, 18, 0, 18),
+        BackgroundTransparency = 1, Text = "x", TextColor3 = themes.preset.dimtext,
+        FontFace = fonts.font, TextSize = 16, ZIndex = 402,
+    })
+    local input = library:create("TextBox", {
+        Parent = box, Position = dim2(0, 16, 0, 40), Size = dim2(1, -32, 0, 32),
+        BackgroundColor3 = rgb(16,16,18), BorderSizePixel = 0, FontFace = fonts.font,
+        Text = "", PlaceholderText = "Search", TextColor3 = rgb(255,255,255),
+        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 402,
+    })
+    library:create("UICorner", { Parent = input, CornerRadius = dim(0, 7) })
+    library:create("UIPadding", { Parent = input, PaddingLeft = dim(0, 28) })
+    local ic = library:create("ImageLabel", {
+        Parent = input, BackgroundTransparency = 1, Size = dim2(0, 14, 0, 14),
+        Position = dim2(0, -20, 0.5, -7), Image = "rbxassetid://6031094678",
+        ImageColor3 = themes.preset.dimtext, ZIndex = 403,
+    })
+    local list = library:create("ScrollingFrame", {
+        Parent = box, Position = dim2(0, 16, 0, 84), Size = dim2(1, -32, 1, -100),
+        BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = dim2(0,0,0,0), ZIndex = 402,
+    })
+    library:create("UIListLayout", { Parent = list, Padding = dim(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
     local function render(q)
         for _, c in ipairs(list:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
         q = tostring(q or ""):lower()
         local n = 0
         for _, item in ipairs(library._searchIndex) do
-            if n >= 40 then break end
+            if n >= 50 then break end
             local name = tostring(item.name or "")
             if q == "" or name:lower():find(q, 1, true) then
                 n += 1
-                local b = library:create("TextButton", { Parent = list, Size = dim2(1,0,0,28), BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, Text = "  " .. name, FontFace = fonts.font, TextSize = 13, TextColor3 = themes.preset.text, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false })
-                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 5) })
+                local b = library:create("TextButton", {
+                    Parent = list, Size = dim2(1, 0, 0, 34), BackgroundColor3 = rgb(28,28,32),
+                    BorderSizePixel = 0, Text = "", AutoButtonColor = false, ZIndex = 403,
+                })
+                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
+                library:create("Frame", {
+                    Parent = b, Size = dim2(0, 3, 1, -10), Position = dim2(0, 6, 0, 5),
+                    BackgroundColor3 = themes.preset.accent, BorderSizePixel = 0, ZIndex = 404,
+                })
+                library:create("TextLabel", {
+                    Parent = b, BackgroundTransparency = 1, Position = dim2(0, 16, 0, 0),
+                    Size = dim2(1, -20, 1, 0), FontFace = fonts.font, Text = name,
+                    TextSize = 14, TextColor3 = rgb(255,255,255), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 404,
+                })
                 b.MouseButton1Click:Connect(function()
                     pcall(function()
                         if item.tab and item.tab.open_tab then item.tab.open_tab() end
                         if item.page and item.page.open_page then item.page.open_page() end
                     end)
-                    task.delay(0.15, function()
+                    task.delay(0.12, function()
                         pcall(function()
                             local inst = item.inst
                             if inst and inst.Parent then
                                 local old = inst.BackgroundColor3
                                 inst.BackgroundColor3 = themes.preset.accent
-                                task.wait(0.7)
+                                task.wait(0.65)
                                 inst.BackgroundColor3 = old
                             end
                         end)
@@ -1820,6 +1899,7 @@ function library.OpenSearch()
     end
     input:GetPropertyChangedSignal("Text"):Connect(function() render(input.Text) end)
     dimmer.MouseButton1Click:Connect(function() pcall(function() gui:Destroy() end) end)
+    close.MouseButton1Click:Connect(function() pcall(function() gui:Destroy() end) end)
     render("")
     task.defer(function() input:CaptureFocus() end)
 end
@@ -1829,7 +1909,7 @@ function library:section(properties)
         name = properties.name or properties.Name or "section",
         side = properties.side or properties.Side or "left",
         default = properties.default or properties.Default or false,
-        size = properties.size or properties.Size or self.size or 0.5,
+        size = math.clamp(properties.size or properties.Size or self.size or 0.5, 0.22, 0.62),
         icon = properties.icon or properties.Icon or "box",
         fading_toggle = properties.fading or properties.Fading or false,
         items = {},
@@ -1960,34 +2040,7 @@ function library:section(properties)
                 local gy = items["outline"]:GetAttribute("GrabY") or 0
                 items["outline"].Position = dim2(0, loc.X - gx, 0, loc.Y - gy)
                 pcall(function()
-                    local best
-                    local host = items["main"] or (library["items"] and library["items"]:FindFirstChildWhichIsA("Frame"))
-                    local nearest, nd
-                    for _, col in ipairs(library._columns or {}) do
-                        if col and col.Parent and col.AbsoluteSize.X > 40 then
-                            local p, s = col.AbsolutePosition, col.AbsoluteSize
-                            local cx, cy = p.X + s.X/2, p.Y + s.Y/2
-                            local d = (loc.X-cx)^2 + (loc.Y-cy)^2
-                            if not nd or d < nd then nearest, nd, best = col, d, col end
-                        end
-                    end
-                    if best then
-                        local p, s = best.AbsolutePosition, best.AbsoluteSize
-                        local h = items["outline"].AbsoluteSize.Y
-                        if not library._snapGhost or not library._snapGhost.Parent then
-                            library._snapGhost = library:create("Frame", {
-                                Parent = library._floatGui,
-                                BackgroundColor3 = rgb(120,120,140),
-                                BackgroundTransparency = 0.5,
-                                BorderSizePixel = 0,
-                                ZIndex = 199,
-                            })
-                            library:create("UICorner", { Parent = library._snapGhost, CornerRadius = dim(0, 7) })
-                        end
-                        library._snapGhost.Visible = true
-                        library._snapGhost.Position = dim2(0, p.X + 4, 0, p.Y + 8)
-                        library._snapGhost.Size = dim2(0, math.max(40, s.X - 8), 0, h)
-                    end
+                    library._updateGhost(library._bestColumn(loc.X, loc.Y), items["outline"].AbsoluteSize.Y)
                 end)
             end)
             uis.InputEnded:Connect(function(input)
