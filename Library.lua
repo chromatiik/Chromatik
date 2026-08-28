@@ -6,6 +6,18 @@ local gui_service = game:GetService("GuiService")
 local run = game:GetService("RunService")
 local stats = game:GetService("Stats")
 local coregui = game:GetService("CoreGui")
+local function get_hui()
+    local h
+    pcall(function() if gethui then h = gethui() end end)
+    if h then return h end
+    pcall(function() h = game:GetService("CoreGui") end)
+    if h then return h end
+    pcall(function()
+        local lp = players.LocalPlayer or players.PlayerAdded:Wait()
+        h = lp:WaitForChild("PlayerGui")
+    end)
+    return h or coregui
+end
 local tween_service = game:GetService("TweenService")
 local marketplace = game:GetService("MarketplaceService")
 local text_service = game:GetService("TextService")
@@ -703,7 +715,7 @@ function library:window(properties)
     end
 
     library["items"] = library:create("ScreenGui", {
-        Parent = coregui,
+        Parent = get_hui(),
         Name = "\0",
         Enabled = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Global,
@@ -713,7 +725,7 @@ function library:window(properties)
 
 
     library["other"] = library:create("ScreenGui", {
-        Parent = coregui,
+        Parent = get_hui(),
         Name = "\0",
         Enabled = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -1189,7 +1201,7 @@ function library:window(properties)
 
         if touch then
             local btnGui = library:create("ScreenGui", {
-                Parent = coregui,
+                Parent = get_hui(),
                 Name = "\0",
                 ResetOnSpawn = false,
                 IgnoreGuiInset = true,
@@ -1805,7 +1817,7 @@ function library:section(properties)
         do
             if not library._floatGui then
                 library._floatGui = library:create("ScreenGui", {
-                    Parent = coregui, Name = "\0", IgnoreGuiInset = true, ResetOnSpawn = false,
+                    Parent = get_hui(), Name = "\0", IgnoreGuiInset = true, ResetOnSpawn = false,
                     DisplayOrder = 12000, ZIndexBehavior = Enum.ZIndexBehavior.Global,
                 })
             end
@@ -1927,7 +1939,7 @@ function library:section(properties)
         do
             if not library._floatGui then
                 library._floatGui = library:create("ScreenGui", {
-                    Parent = coregui, IgnoreGuiInset = true, ResetOnSpawn = false,
+                    Parent = get_hui(), IgnoreGuiInset = true, ResetOnSpawn = false,
                     DisplayOrder = 12000, ZIndexBehavior = Enum.ZIndexBehavior.Global, Name = "\0",
                 })
             end
@@ -4272,7 +4284,7 @@ function library:KeybindList(params)
     end
 
     local gui = library:create("ScreenGui", {
-        Parent = coregui,
+        Parent = get_hui(),
         Name = "\0",
         Enabled = true,
         ResetOnSpawn = false,
@@ -4874,7 +4886,7 @@ function library:Watermark(params)
 
     if not library["watermark_gui"] then
         library["watermark_gui"] = library:create("ScreenGui", {
-            Parent = coregui,
+            Parent = get_hui(),
             Name = "\0",
             Enabled = true,
             ResetOnSpawn = false,
@@ -5243,7 +5255,7 @@ function library:EspPreview(options)
     end
 
     local gui = library:create("ScreenGui", {
-        Parent = coregui,
+        Parent = get_hui(),
         Name = "\0",
         Enabled = true,
         ResetOnSpawn = false,
@@ -6289,7 +6301,7 @@ function library:PlayerCard(params)
     position = load_pos()
 
     local gui = library:create("ScreenGui", {
-        Parent = coregui,
+        Parent = get_hui(),
         Name = "\0",
         Enabled = true,
         ResetOnSpawn = false,
