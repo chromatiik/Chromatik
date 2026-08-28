@@ -297,10 +297,13 @@ local function ApplyIcon(Object, Icon)
 end
 
 function library.LoadEmblemLogo()
-    if library._logoAsset then return library._logoAsset end
+    if library._logoAsset and library._logoUrl == "https://raw.githubusercontent.com/chromatiik/Acen/main/EmblemBanners.png" then
+        return library._logoAsset
+    end
+    library._logoUrl = "https://raw.githubusercontent.com/chromatiik/Acen/main/EmblemBanners.png"
     task.spawn(function()
         pcall(function()
-            local data = game:HttpGet("https://raw.githubusercontent.com/chromatiik/emblem/main/public/emblem.png")
+            local data = game:HttpGet("https://raw.githubusercontent.com/chromatiik/Acen/main/EmblemBanners.png")
             if type(data) == "string" and #data > 80 then
                 pcall(function()
                     if makefolder then makefolder("Emblem") end
@@ -1343,6 +1346,8 @@ function library:tab(properties)
         current_multi = nil,
         items = {},
     }
+    library._lastSidebarTab = cfg
+    cfg._emblemTab = cfg
 
     local items = cfg.items
     do
@@ -1574,6 +1579,8 @@ function library:tab(properties)
                 SortOrder = Enum.SortOrder.LayoutOrder,
             })
             data.parent = tab_parent
+            data._sidebar = cfg
+            data._emblemTab = cfg
 
             function data.open_page()
                 local page = cfg.current_multi
@@ -2067,17 +2074,27 @@ function library.OpenSearch()
                 })
                 b.MouseButton1Click:Connect(function()
                     pcall(function()
-                        if item.tab and item.tab.open_tab then item.tab.open_tab() end
-                        if item.page and item.page.open_page then item.page.open_page() end
+                        local tab = item.tab
+                        if type(tab) == "table" and not tab.open_tab and tab._sidebar then
+                            tab = tab._sidebar
+                        end
+                        if type(tab) == "table" and tab.open_tab then
+                            tab.open_tab()
+                        end
+                        local page = item.page
+                        if type(page) == "table" and page.open_page then
+                            page.open_page()
+                        end
                     end)
-                    task.delay(0.12, function()
+                    task.delay(0.2, function()
                         pcall(function()
                             local inst = item.inst
                             if inst and inst.Parent then
                                 local old = inst.BackgroundColor3
                                 inst.BackgroundColor3 = themes.preset.accent
-                                task.wait(0.65)
-                                inst.BackgroundColor3 = old
+                                task.delay(0.8, function()
+                                    pcall(function() inst.BackgroundColor3 = old end)
+                                end)
                             end
                         end)
                     end)
@@ -2215,7 +2232,7 @@ function library:section(properties)
         })
 
         library._searchIndex = library._searchIndex or {}
-        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = library._buildingTab, page = library._buildingPage })
+        table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = library._lastSidebarTab or library._buildingTab, page = library._buildingPage })
 
         do
             local dragging = false
