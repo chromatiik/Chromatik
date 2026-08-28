@@ -1303,9 +1303,17 @@ function library:window(properties)
         end
         if not match then return end
         if library._sectionDragging then return end
-        if tick() - (library._menuFlipAt or 0) < 0.2 then return end
-        library._menuFlipAt = tick()
+        if library._menuKeyDown then return end
+        library._menuKeyDown = true
         cfg.toggle_menu(not library["items"].Enabled)
+    end)
+    library:connection(uis.InputEnded, function(input)
+        if input.KeyCode == library.MenuKeybind or (type(library.MenuKeybind) == "string" and tostring(input.KeyCode):find(library.MenuKeybind, 1, true)) then
+            library._menuKeyDown = false
+        end
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            library._menuKeyDown = false
+        end
     end)
 
     return setmetatable(cfg, library)
@@ -1961,17 +1969,21 @@ function library:section(properties)
                             if d < best then best, slot = d, col end
                         end
                     end
-                    if ghost and ghost.Parent then ghost:Destroy() end
                     if slot then
                         local p, s = slot.AbsolutePosition, slot.AbsoluteSize
-                        ghost = library:create("Frame", {
-                            Parent = library._floatGui,
-                            Position = dim2(0, p.X + 4, 0, p.Y + 4),
-                            Size = dim2(0, s.X - 8, 0, items["outline"].AbsoluteSize.Y),
-                            BackgroundColor3 = rgb(120,120,140), BackgroundTransparency = 0.45, BorderSizePixel = 0,
-                            ZIndex = 20,
-                        })
-                        library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
+                        if not ghost or not ghost.Parent then
+                            ghost = library:create("Frame", {
+                                Parent = library._floatGui,
+                                BackgroundColor3 = rgb(120,120,140), BackgroundTransparency = 0.45, BorderSizePixel = 0,
+                                ZIndex = 20,
+                            })
+                            library:create("UICorner", { Parent = ghost, CornerRadius = dim(0, 7) })
+                        end
+                        ghost.Visible = true
+                        ghost.Position = dim2(0, p.X + 4, 0, p.Y + 4)
+                        ghost.Size = dim2(0, math.max(40, s.X - 8), 0, items["outline"].AbsoluteSize.Y)
+                    elseif ghost then
+                        ghost.Visible = false
                     end
                 end)
             end)
@@ -4876,7 +4888,7 @@ function library:Watermark(params)
         Parent = library["watermark_gui"],
         AnchorPoint = vec2(0.5, 0),
         Position = dim2(0.5, 0, 0, 14),
-        Size = dim2(0, 0, 0, 26),
+        Size = dim2(0, 0, 0, 36),
         BackgroundColor3 = themes.preset.section,
         BorderSizePixel = 0,
         ZIndex = 60,
