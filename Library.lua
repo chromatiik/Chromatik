@@ -1270,15 +1270,55 @@ function library:window(properties)
         if items["main"] then items["main"].Visible = true end
     end)
 
+    library._scrollAim = library._scrollAim or {}
+    local function aimScroll(frame, delta)
+        if not (frame and frame:IsA("ScrollingFrame")) then return end
+        local maxY = 0
+        pcall(function()
+            maxY = math.max(0, frame.AbsoluteCanvasSize.Y - frame.AbsoluteSize.Y)
+        end)
+        if maxY < 1 then
+            pcall(function()
+                maxY = math.max(0, frame.CanvasSize.Y.Offset - frame.AbsoluteSize.Y)
+            end)
+        end
+        local cur = library._scrollAim[frame] or frame.CanvasPosition.Y
+        local nxt = math.clamp(cur + delta, 0, math.max(0, maxY))
+        library._scrollAim[frame] = nxt
+    end
     library:connection(uis.InputChanged, function(input)
         if input.UserInputType ~= Enum.UserInputType.MouseWheel then return end
         if not (library["items"] and library["items"].Enabled) then return end
+        local m = uis:GetMouseLocation()
+        local function inside(obj)
+            if not (obj and obj.Parent) then return false end
+            local p, s = obj.AbsolutePosition, obj.AbsoluteSize
+            return m.X >= p.X and m.X <= p.X + s.X and m.Y >= p.Y and m.Y <= p.Y + s.Y
+        end
+        local delta = -input.Position.Z * 72
+        if inside(items["button_holder"]) or inside(items["side_frame"]) then
+            aimScroll(items["button_holder"], delta)
+            return
+        end
         local th = library.selected_tab and library.selected_tab[4]
-        if not (th and th:IsA("ScrollingFrame")) then return end
-        local y = th.CanvasPosition.Y - input.Position.Z * 48
-        if y < 0 then y = 0 end
-        th.CanvasPosition = Vector2.new(0, y)
-        pcall(library.RefreshPageScroll)
+        if th and th:IsA("ScrollingFrame") and (inside(th) or (inside(items["main"]) and not inside(items["side_frame"]))) then
+            pcall(library.RefreshPageScroll)
+            aimScroll(th, delta)
+        end
+    end)
+    library:connection(run.RenderStepped, function(dt)
+        local aim = library._scrollAim
+        if not aim then return end
+        for frame, target in pairs(aim) do
+            if not (frame and frame.Parent) then
+                aim[frame] = nil
+            else
+                local y = frame.CanvasPosition.Y
+                local ny = y + (target - y) * math.clamp((dt or 0.016) * 14, 0.12, 0.45)
+                if math.abs(ny - target) < 0.6 then ny = target end
+                frame.CanvasPosition = Vector2.new(0, ny)
+            end
+        end
     end)
 
     library:connection(uis.InputBegan, function(input, gpe)
