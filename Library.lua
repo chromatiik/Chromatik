@@ -1,4 +1,4 @@
--- EMBLEM_BUILD 2026-09-03-old+login | Chromatik base
+-- EMBLEM_BUILD 2026-09-03-h | Chromatik base
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.5.0-emblem",
+    version = "1.5.1-emblem",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -102,16 +102,16 @@ local notifications = library.notifications
 
 local themes = {
     preset = {
-        accent = rgb(155, 150, 219),
-        background = rgb(14, 14, 16),
-        section = rgb(22, 22, 24),
-        element = rgb(25, 25, 29),
-        light = rgb(33, 33, 35),
-        hover = rgb(39, 39, 43),
-        line = rgb(21, 21, 23),
-        text = rgb(255, 255, 255),
-        dimtext = rgb(72, 72, 73),
-        dimicon = rgb(72, 72, 73),
+        accent = rgb(110, 220, 140),
+        background = rgb(12, 14, 13),
+        section = rgb(18, 22, 19),
+        element = rgb(22, 28, 24),
+        light = rgb(32, 40, 34),
+        hover = rgb(38, 48, 40),
+        line = rgb(24, 30, 26),
+        text = rgb(245, 250, 246),
+        dimtext = rgb(110, 130, 115),
+        dimicon = rgb(110, 130, 115),
     },
     utility = {
         accent = {
@@ -684,7 +684,7 @@ function library:window(properties)
         name = properties.name or properties.Name or "Chromatik",
         game_name = properties.gameInfo or properties.game_info or properties.GameInfo or "Chromatik for Roblox",
         author = properties.author or properties.Author or library.author or "chromatik",
-        size = properties.size or properties.Size or dim2(0, 700, 0, 565),
+        size = properties.size or properties.Size or dim2(0, 820, 0, 460),
         selected_tab = nil,
         items = {},
     }
@@ -745,7 +745,7 @@ function library:window(properties)
             BackgroundTransparency = 1,
             Name = "\0",
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 196, 1, 0),
+            Size = dim2(0, 72, 1, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
         })
@@ -764,9 +764,9 @@ function library:window(properties)
             Parent = items["side_frame"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 0, 0, 60),
+            Position = dim2(0, 0, 0, 70),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 1, -108),
+            Size = dim2(1, 0, 1, -80),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             CanvasSize = dim2(0, 0, 0, 0),
             ScrollBarThickness = 3,
@@ -778,20 +778,20 @@ function library:window(properties)
         cfg.button_holder = items["button_holder"]
 
         items["search_btn"] = library:create("TextButton", {
-            Parent = items["side_frame"],
+            Parent = items["main"],
             Text = "",
             TextXAlignment = Enum.TextXAlignment.Left,
             FontFace = fonts.font,
-            TextSize = 14,
+            TextSize = 13,
             TextColor3 = themes.preset.dimtext,
             AutoButtonColor = false,
             BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 10, 1, -40),
-            Size = dim2(1, -20, 0, 28),
+            Position = dim2(0, 84, 0, 12),
+            Size = dim2(0, 240, 0, 32),
             BorderSizePixel = 0,
-            ZIndex = 8,
+            ZIndex = 20,
         })
-        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
+        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 8) })
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
         local sic = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
@@ -874,7 +874,7 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 0),
+            Position = dim2(0, 72, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
             Size = dim2(1, -196, 0, 56),
             BorderSizePixel = 0,
@@ -1182,6 +1182,26 @@ function library:window(properties)
                 end)
             end)
             items["discord_btn"] = dbtn
+            -- avatar next to discord
+            local avatarBtn = library:create("ImageButton", {
+                Parent = items["main"],
+                AnchorPoint = vec2(1, 0),
+                Position = dim2(1, -52, 0, 12),
+                Size = dim2(0, 32, 0, 32),
+                BackgroundColor3 = themes.preset.element,
+                AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 20,
+                ScaleType = Enum.ScaleType.Crop,
+            })
+            library:create("UICorner", { Parent = avatarBtn, CornerRadius = dim(1, 0) })
+            library:create("UIStroke", { Parent = avatarBtn, Color = themes.preset.accent, Thickness = 1.2 })
+            task.spawn(function()
+                local ok, content = pcall(function()
+                    return players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+                end)
+                if ok and content then avatarBtn.Image = content end
+            end)
+            dbtn.Position = dim2(1, -92, 0, 12)
+            items["avatar_btn"] = avatarBtn
         end
     library:resizify(items["main"])
 
@@ -1390,7 +1410,7 @@ function library:tab(properties)
     local cfg = {
         name = properties.name or properties.Name or "visuals",
         icon = properties.icon or properties.Icon or "layers",
-        tabs = properties.tabs or properties.Tabs or { "Main", "Misc.", "Settings" },
+        tabs = properties.tabs or properties.Tabs or { "Main" },
         pages = {},
         current_multi = nil,
         items = {},
@@ -1673,6 +1693,19 @@ function library:tab(properties)
         if cfg.pages[1] and cfg.pages[1].open_page then
             cfg.pages[1].open_page()
         end
+        -- hide sub-tab strip when only one page
+        if #cfg.tabs <= 1 then
+            pcall(function()
+                if items["multi_section_button_holder"] then
+                    items["multi_section_button_holder"].Visible = false
+                    items["multi_section_button_holder"].Parent = library.cache
+                end
+                if self.items and self.items["multi_holder"] then
+                    self.items["multi_holder"].Visible = false
+                    self.items["multi_holder"].Size = dim2(1, -86, 0, 0)
+                end
+            end)
+        end
     end
 
     function cfg.open_tab()
@@ -1681,7 +1714,7 @@ function library:tab(properties)
             if selected_tab[4] ~= items["tab_holder"] then
                 self.items["global_fade"].BackgroundTransparency = 0
                 library:tween(self.items["global_fade"], { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.4)
-                selected_tab[4].Size = dim2(1, -216, 1, -101)
+                selected_tab[4].Size = dim2(1, -92, 1, -101)
             end
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
@@ -7063,6 +7096,11 @@ function library:Login(options)
             ClipsDescendants = true, ZIndex = 80,
         })
         library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
+        local glow = library:create("UIStroke", {
+            Parent = card, Color = themes.preset.accent, Thickness = 1.5,
+            Transparency = 0.35, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
+        library:apply_theme(glow, "accent", "Color")
     else
         return
     end
