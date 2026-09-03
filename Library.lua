@@ -6916,23 +6916,28 @@ end
 
 function library:Login(options)
     options = options or {}
-    local fields = options.fields or options.Fields or { "key" }
+    local fields = options.fields or options.Fields or { "username", "password", "key" }
     local cfg = {
-        title = options.title or options.Title or "Login",
+        title = options.title or options.Title or "Verdian Login",
         fields = fields,
         remember = options.remember ~= false and options.Remember ~= false,
         onSubmit = options.onSubmit or options.OnSubmit or options.callback or options.Callback,
         onSuccess = options.onSuccess or options.OnSuccess or function() end,
-        copyright = options.copyright or options.Copyright,
-        saveFile = library.directory .. "/login_" .. (options.saveKey or options.SaveKey or "default") .. ".json",
+        copyright = options.copyright or options.Copyright or "Copyright 2026 Verdian. All rights reserved.",
+        saveFile = library.directory .. "/login_" .. tostring(options.saveKey or options.SaveKey or "default") .. ".json",
+        parent = options.Parent or options.parent,
+        window = options.Window or options.window,
     }
 
     local wantUser, wantPass, wantKey = false, false, false
     for _, f in ipairs(fields) do
-        f = string.lower(f)
+        f = string.lower(tostring(f))
         if f == "username" or f == "user" then wantUser = true end
         if f == "password" or f == "pass" then wantPass = true end
         if f == "key" or f == "license" then wantKey = true end
+    end
+    if not wantUser and not wantPass and not wantKey then
+        wantKey = true
     end
 
     local saved = {}
@@ -6942,181 +6947,208 @@ function library:Login(options)
         end
     end)
 
-    local gui = library:create("ScreenGui", {
-        Parent = get_hui(),
-        Name = "\0",
-        ZIndexBehavior = Enum.ZIndexBehavior.Global,
-        IgnoreGuiInset = true,
-        DisplayOrder = 2000,
-    })
+    local host = cfg.parent
+    local ownGui = false
+    local gui, card
 
-    local cardW, cardH = 460, 400
-    local card = library:create("Frame", {
-        Parent = gui,
-        AnchorPoint = vec2(0.5, 0.5),
-        Position = dim2(0.5, 0, 0.5, 0),
-        Size = dim2(0, cardW, 0, cardH),
-        BackgroundColor3 = themes.preset.background,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-    })
-    library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
-    local cardStroke = library:create("UIStroke", { Parent = card, Color = themes.preset.line, Thickness = 1 })
+    if cfg.window and cfg.window.items and cfg.window.items["main"] then
+        host = cfg.window.items["main"]
+    end
 
+    if host then
+        -- embed inside main menu frame (same size / same frame)
+        for _, child in ipairs(host:GetChildren()) do
+            if child:IsA("GuiObject") and child.Name ~= "LoginLayer" then
+                child:SetAttribute("_preLoginVisible", child.Visible)
+                child.Visible = false
+            end
+        end
+        card = library:create("Frame", {
+            Parent = host,
+            Name = "LoginLayer",
+            Size = dim2(1, 0, 1, 0),
+            BackgroundColor3 = themes.preset.background,
+            BorderSizePixel = 0,
+            ZIndex = 50,
+        })
+        library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
+        gui = host
+    else
+        ownGui = true
+        gui = library:create("ScreenGui", {
+            Parent = get_hui(),
+            Name = "\0",
+            ZIndexBehavior = Enum.ZIndexBehavior.Global,
+            IgnoreGuiInset = true,
+            DisplayOrder = 2000,
+        })
+        local size = options.Size or options.size or dim2(0, 700, 0, 520)
+        card = library:create("Frame", {
+            Parent = gui,
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = size,
+            BackgroundColor3 = themes.preset.background,
+            BorderSizePixel = 0,
+            ClipsDescendants = true,
+            ZIndex = 50,
+        })
+        library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
+        library:create("UIStroke", { Parent = card, Color = themes.preset.line, Thickness = 1 })
+    end
+
+    -- soft accent glows
     local glowA = library:create("Frame", {
-        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.15, 0, 0.05, 0),
-        Size = dim2(0, 220, 0, 220), Rotation = 0, BackgroundColor3 = themes.preset.accent,
-        BackgroundTransparency = 0.88, BorderSizePixel = 0, ZIndex = 0,
+        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.18, 0, 0.12, 0),
+        Size = dim2(0, 240, 0, 240), BackgroundColor3 = themes.preset.accent,
+        BackgroundTransparency = 0.9, BorderSizePixel = 0, ZIndex = 51,
     })
     library:create("UICorner", { Parent = glowA, CornerRadius = dim(1, 0) })
     local glowB = library:create("Frame", {
-        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.9, 0, 0.95, 0),
-        Size = dim2(0, 260, 0, 260), BackgroundColor3 = themes.preset.accent,
-        BackgroundTransparency = 0.92, BorderSizePixel = 0, ZIndex = 0,
+        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.88, 0, 0.9, 0),
+        Size = dim2(0, 280, 0, 280), BackgroundColor3 = themes.preset.accent,
+        BackgroundTransparency = 0.93, BorderSizePixel = 0, ZIndex = 51,
     })
     library:create("UICorner", { Parent = glowB, CornerRadius = dim(1, 0) })
 
     local form = library:create("Frame", {
-        Parent = card, Position = dim2(0.5, 0, 0, 40), AnchorPoint = vec2(0.5, 0),
-        Size = dim2(0, 300, 1, -80), BackgroundTransparency = 1, ZIndex = 2,
+        Parent = card,
+        AnchorPoint = vec2(0.5, 0.5),
+        Position = dim2(0.5, 0, 0.5, 0),
+        Size = dim2(0, 320, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        ZIndex = 52,
     })
 
-    local title = library:create("TextLabel", {
-        Parent = form, Size = dim2(1, 0, 0, 30), Font = Enum.Font.GothamBold,
-        FontFace = fonts.font_bold or fonts.font, Text = cfg.title, TextSize = 24,
-        TextColor3 = themes.preset.text, BackgroundTransparency = 1, ZIndex = 2,
+    library:create("TextLabel", {
+        Parent = form, Size = dim2(1, 0, 0, 28), FontFace = fonts.font,
+        Text = cfg.title, TextSize = 22, TextColor3 = themes.preset.text,
+        BackgroundTransparency = 1, ZIndex = 53,
     })
     local underline = library:create("Frame", {
-        Parent = form, Position = dim2(0.5, 0, 0, 34), AnchorPoint = vec2(0.5, 0),
-        Size = dim2(0, 70, 0, 2), BorderSizePixel = 0, ZIndex = 2,
+        Parent = form, Position = dim2(0.5, 0, 0, 32), AnchorPoint = vec2(0.5, 0),
+        Size = dim2(0, 64, 0, 2), BorderSizePixel = 0, BackgroundColor3 = themes.preset.accent, ZIndex = 53,
     })
-    library:create("UIGradient", {
-        Parent = underline,
-        Color = rgbseq({ rgbkey(0, themes.preset.accent), rgbkey(1, themes.preset.accent) }),
-        Transparency = numseq({ numkey(0, 0), numkey(1, 1) }),
-    })
+    library:apply_theme(underline, "accent", "BackgroundColor3")
 
-    local function makeInput(labelText, iconName, isSecret, y)
+    local function makeInput(placeholder, iconName, y, isPass)
         local wrap = library:create("Frame", {
             Parent = form, Position = dim2(0, 0, 0, y), Size = dim2(1, 0, 0, 42),
-            BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 2,
+            BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 53,
         })
         library:create("UICorner", { Parent = wrap, CornerRadius = dim(0, 8) })
-        library:create("UIStroke", { Parent = wrap, Color = themes.preset.line, Thickness = 1 })
+        -- no stroke / no focus border
         local icon = library:create("ImageLabel", {
-            Parent = wrap, AnchorPoint = vec2(0, 0.5), Position = dim2(0, 13, 0.5, 0),
+            Parent = wrap, AnchorPoint = vec2(0, 0.5), Position = dim2(0, 12, 0.5, 0),
             Size = dim2(0, 15, 0, 15), BackgroundTransparency = 1,
-            ImageColor3 = themes.preset.dimicon, ZIndex = 3,
+            ImageColor3 = themes.preset.dimicon, ZIndex = 54,
         })
         ApplyIcon(icon, iconName)
         local box = library:create("TextBox", {
-            Parent = wrap, Position = dim2(0, 38, 0, 0), Size = dim2(1, -48, 1, 0),
-            BackgroundTransparency = 1, PlaceholderText = labelText, Text = "",
+            Parent = wrap, Position = dim2(0, 36, 0, 0), Size = dim2(1, -48, 1, 0),
+            BackgroundTransparency = 1, PlaceholderText = placeholder, Text = "",
             PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
             FontFace = fonts.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
-            ClearTextOnFocus = false, TextTruncate = Enum.TextTruncate.AtEnd,
-            ZIndex = 3,
+            ClearTextOnFocus = false, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 54,
         })
-        if isSecret then
-            local real = ""
+        local real = { value = "" }
+        if isPass then
+            local suppress = false
             box:GetPropertyChangedSignal("Text"):Connect(function()
+                if suppress then return end
                 local shown = box.Text
-                if #shown > #real then
-                    real = real .. shown:sub(#real + 1)
-                elseif #shown < #real then
-                    real = real:sub(1, #shown)
+                local bullets = 0
+                for _ in shown:gmatch("•") do bullets = bullets + 1 end
+                if #shown < #real.value then
+                    real.value = real.value:sub(1, #shown)
+                else
+                    local appended = shown:gsub("•", "")
+                    if #appended > 0 then
+                        real.value = real.value .. appended
+                    elseif #shown > #real.value then
+                        real.value = real.value .. string.rep("*", #shown - #real.value)
+                    end
                 end
-                local masked = string.rep("\226\128\162", #real)
-                if box.Text ~= masked then
-                    box.Text = masked
-                end
+                suppress = true
+                box.Text = string.rep("•", #real.value)
+                suppress = false
+                pcall(function() box.CursorPosition = #box.Text + 1 end)
             end)
-            box.GetReal = function() return real end
+            box.GetReal = function() return real.value end
         end
-        box.Focused:Connect(function()
-            library:tween(cardStroke, { Color = themes.preset.accent }, Enum.EasingStyle.Quad, 0.15)
-        end)
-        box.FocusLost:Connect(function()
-            library:tween(cardStroke, { Color = themes.preset.line }, Enum.EasingStyle.Quad, 0.15)
-        end)
-        return wrap, box
+        return wrap, box, real
     end
 
-    local fieldY = 56
+    local fieldY = 52
     local usernameBox, passwordBox, keyBox
     if wantUser then
-        local _, box = makeInput("Username", "user", false, fieldY)
+        local _, box = makeInput("Username", "user", fieldY, false)
         usernameBox = box
-        usernameBox.Text = saved.username or ""
+        usernameBox.Text = tostring(saved.username or "")
         fieldY = fieldY + 50
     end
     if wantPass then
-        local _, box = makeInput("Password", "lock", true, fieldY)
+        local _, box = makeInput("Password", "lock", fieldY, true)
         passwordBox = box
-        passwordBox.Text = saved.password or ""
-        pcall(function()
-            local textbox = passwordBox
-            textbox:GetPropertyChangedSignal("Text"):Connect(function() end)
-        end)
+        if type(saved.password) == "string" and saved.password ~= "" then
+            passwordBox.Text = saved.password
+        end
         fieldY = fieldY + 50
     end
     if wantKey then
-        local _, box = makeInput("License key", "key-round", false, fieldY)
+        local _, box = makeInput("License", "key-round", fieldY, false)
         keyBox = box
-        keyBox.Text = saved.key or ""
+        keyBox.Text = tostring(saved.key or "")
         fieldY = fieldY + 50
     end
 
     local signInBtn = library:create("TextButton", {
-        Parent = form, Position = dim2(0, 0, 0, fieldY + 6), Size = dim2(1, 0, 0, 42),
+        Parent = form, Position = dim2(0, 0, 0, fieldY + 4), Size = dim2(1, 0, 0, 42),
         BackgroundColor3 = themes.preset.accent, AutoButtonColor = false, Text = "",
-        BorderSizePixel = 0, ZIndex = 2,
+        BorderSizePixel = 0, ZIndex = 53,
     })
     library:create("UICorner", { Parent = signInBtn, CornerRadius = dim(0, 8) })
     library:apply_theme(signInBtn, "accent", "BackgroundColor3")
     local signInLabel = library:create("TextLabel", {
-        Parent = signInBtn, Size = dim2(1, 0, 1, 0), Text = "Sign in", Font = Enum.Font.GothamBold,
-        FontFace = fonts.font_bold or fonts.font, TextSize = 15, TextColor3 = rgb(255, 255, 255),
-        BackgroundTransparency = 1, ZIndex = 3,
+        Parent = signInBtn, Size = dim2(1, 0, 1, 0), Text = "Sign in", FontFace = fonts.font,
+        TextSize = 15, TextColor3 = rgb(255, 255, 255), BackgroundTransparency = 1, ZIndex = 54,
     })
     local spinner = library:create("ImageLabel", {
         Parent = signInBtn, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
         Size = dim2(0, 18, 0, 18), BackgroundTransparency = 1, ImageColor3 = rgb(255, 255, 255),
-        Visible = false, ZIndex = 3, Image = "rbxassetid://4998437060",
+        Visible = false, ZIndex = 54, Image = "rbxassetid://4998437060",
     })
     library:connection(run.RenderStepped, function(dt)
         if spinner.Visible then spinner.Rotation = (spinner.Rotation + dt * 260) % 360 end
     end)
 
     local errorLabel = library:create("TextLabel", {
-        Parent = form, Position = dim2(0, 0, 0, fieldY + 52), Size = dim2(1, 0, 0, 18),
-        Text = "", TextColor3 = rgb(240, 90, 90), FontFace = fonts.font, TextSize = 12.5,
-        BackgroundTransparency = 1, TextTransparency = 1, ZIndex = 2,
+        Parent = form, Position = dim2(0, 0, 0, fieldY + 50), Size = dim2(1, 0, 0, 16),
+        Text = "", TextColor3 = rgb(240, 90, 90), FontFace = fonts.font, TextSize = 12,
+        BackgroundTransparency = 1, TextTransparency = 1, ZIndex = 53,
     })
 
-    local rememberRow
-    local rememberOn = cfg.remember and (saved.remember == true)
-    local rememberCheck
+    local rememberOn = cfg.remember and saved.remember == true
     if cfg.remember then
-        rememberRow = library:create("Frame", {
-            Parent = form, Position = dim2(0, 0, 0, fieldY + 76), Size = dim2(1, 0, 0, 18),
-            BackgroundTransparency = 1, ZIndex = 2,
+        local rememberRow = library:create("Frame", {
+            Parent = form, Position = dim2(0, 0, 0, fieldY + 72), Size = dim2(1, 0, 0, 18),
+            BackgroundTransparency = 1, ZIndex = 53,
         })
-        rememberCheck = library:create("TextButton", {
+        local rememberCheck = library:create("TextButton", {
             Parent = rememberRow, Size = dim2(0, 16, 0, 16), Text = "", AutoButtonColor = false,
-            BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 2,
+            BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 53,
         })
         library:create("UICorner", { Parent = rememberCheck, CornerRadius = dim(0, 4) })
-        library:create("UIStroke", { Parent = rememberCheck, Color = themes.preset.line, Thickness = 1 })
         local checkMark = library:create("ImageLabel", {
             Parent = rememberCheck, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1,
-            ImageColor3 = rgb(255, 255, 255), ImageTransparency = 1, ZIndex = 3,
+            ImageColor3 = rgb(255, 255, 255), ImageTransparency = 1, ZIndex = 54,
         })
         ApplyIcon(checkMark, "check")
         library:create("TextLabel", {
             Parent = rememberRow, Position = dim2(0, 24, 0, 0), Size = dim2(1, -24, 1, 0),
             Text = "Remember me", TextColor3 = themes.preset.dimtext, FontFace = fonts.font,
-            TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, ZIndex = 2,
+            TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, ZIndex = 53,
         })
         local function setRemember(v)
             rememberOn = v
@@ -7127,24 +7159,40 @@ function library:Login(options)
         setRemember(rememberOn)
     end
 
-    local copyright = library:create("TextLabel", {
-        Parent = card, AnchorPoint = vec2(0.5, 1), Position = dim2(0.5, 0, 1, -14),
-        Size = dim2(1, -40, 0, 16), Text = cfg.copyright or "", TextColor3 = themes.preset.dimtext,
-        FontFace = fonts.font, TextSize = 11.5, BackgroundTransparency = 1, ZIndex = 2,
+    library:create("TextLabel", {
+        Parent = card, AnchorPoint = vec2(0.5, 1), Position = dim2(0.5, 0, 1, -16),
+        Size = dim2(1, -40, 0, 16), Text = cfg.copyright, TextColor3 = themes.preset.dimtext,
+        FontFace = fonts.font, TextSize = 11, BackgroundTransparency = 1, ZIndex = 53,
     })
 
     local submitting = false
     local function setError(msg)
         errorLabel.Text = msg or ""
-        library:tween(errorLabel, { TextTransparency = msg and 0 or 1 }, Enum.EasingStyle.Quad, 0.15)
+        library:tween(errorLabel, { TextTransparency = (msg and msg ~= "") and 0 or 1 }, Enum.EasingStyle.Quad, 0.15)
     end
-
     local function setSubmitting(state)
         submitting = state
         signInLabel.Visible = not state
         spinner.Visible = state
         for _, box in ipairs({ usernameBox, passwordBox, keyBox }) do
             if box then box.TextEditable = not state end
+        end
+    end
+
+    local function restoreWindow()
+        if host and host.Parent then
+            for _, child in ipairs(host:GetChildren()) do
+                if child:IsA("GuiObject") and child.Name ~= "LoginLayer" then
+                    local prev = child:GetAttribute("_preLoginVisible")
+                    if prev == nil then prev = true end
+                    child.Visible = prev and true or false
+                end
+            end
+        end
+        if card and card.Name == "LoginLayer" then
+            pcall(function() card:Destroy() end)
+        elseif ownGui and gui then
+            pcall(function() gui:Destroy() end)
         end
     end
 
@@ -7157,38 +7205,40 @@ function library:Login(options)
         }
         if wantUser and (not creds.username or creds.username == "") then return setError("Enter a username.") end
         if wantPass and (not creds.password or creds.password == "") then return setError("Enter a password.") end
-        if wantKey and (not creds.key or creds.key == "") then return setError("Enter a key.") end
+        if wantKey and (not creds.key or creds.key == "") then return setError("Enter a license key.") end
 
         setError(nil)
         setSubmitting(true)
 
         local function finish(success, message)
-            if not gui.Parent then return end
+            if not card or not card.Parent then return end
             setSubmitting(false)
             if success then
                 pcall(function()
                     if cfg.remember and rememberOn then
-                        if not isfolder or not isfolder(library.directory) then pcall(makefolder, library.directory) end
+                        pcall(makefolder, library.directory)
                         writefile(cfg.saveFile, http_service:JSONEncode({
                             username = creds.username, password = creds.password, key = creds.key, remember = true,
                         }))
                     elseif cfg.remember and isfile and isfile(cfg.saveFile) then
-                        delfile(cfg.saveFile)
+                        pcall(delfile, cfg.saveFile)
                     end
                 end)
-                library:tween(card, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.25)
-                task.delay(0.25, function()
-                    gui:Destroy()
+                library:tween(card, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.2)
+                task.delay(0.2, function()
+                    restoreWindow()
                     pcall(cfg.onSuccess, creds)
                 end)
             else
-                setError(message or "Something went wrong.")
+                setError(message or "Invalid credentials.")
             end
         end
 
         if type(cfg.onSubmit) == "function" then
             task.spawn(function()
-                local ok, err = pcall(cfg.onSubmit, creds, finish)
+                local ok, err = pcall(function()
+                    cfg.onSubmit(creds, finish)
+                end)
                 if not ok then finish(false, tostring(err)) end
             end)
         else
@@ -7199,19 +7249,17 @@ function library:Login(options)
     signInBtn.MouseButton1Click:Connect(submit)
     for _, box in ipairs({ usernameBox, passwordBox, keyBox }) do
         if box then
-            box.FocusLost:Connect(function(enterPressed)
-                if enterPressed then submit() end
+            box.FocusLost:Connect(function(enter)
+                if enter then submit() end
             end)
         end
     end
 
-    card.Size = dim2(0, cardW, 0, 0)
-    card.BackgroundTransparency = 1
-    library:tween(card, { Size = dim2(0, cardW, 0, cardH), BackgroundTransparency = 0 }, Enum.EasingStyle.Quint, 0.35)
-
     return {
         gui = gui,
-        close = function() pcall(function() gui:Destroy() end) end,
+        card = card,
+        close = function() restoreWindow() end,
+        submit = submit,
     }
 end
 
