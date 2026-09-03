@@ -756,7 +756,7 @@ function library:window(properties)
             BackgroundTransparency = 1,
             AnchorPoint = vec2(0.5, 0.5),
             Position = dim2(0.5, 0, 0, 28),
-            Size = dim2(0, 0, 0, 40),
+            Size = dim2(0, 0, 0, 38),
             AutomaticSize = Enum.AutomaticSize.X,
             BorderSizePixel = 0,
             ZIndex = 12,
@@ -773,11 +773,11 @@ function library:window(properties)
             AutoButtonColor = false,
             BackgroundColor3 = themes.preset.element,
             Position = dim2(0, 48, 0, 12),
-            Size = dim2(0, 160, 0, 32),
+            Size = dim2(0, 150, 0, 32),
             BorderSizePixel = 0,
             ZIndex = 15,
         })
-        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
+        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 16) })
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
         local sic = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
@@ -790,7 +790,7 @@ function library:window(properties)
         library:create("TextLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
             Position = dim2(0, 26, 0, 0), Size = dim2(1, -32, 1, 0),
-            FontFace = fonts.font, Text = "Search", TextSize = 14,
+            FontFace = fonts.font, Text = "Search...", TextSize = 14,
             TextColor3 = themes.preset.dimtext, TextXAlignment = Enum.TextXAlignment.Left,
             BorderSizePixel = 0, ZIndex = 9,
         })
@@ -811,8 +811,8 @@ function library:window(properties)
         items["title"] = library:create("Frame", {
             Parent = items["main"],
             BackgroundTransparency = 1,
-            Position = dim2(0, 10, 0, 10),
-            Size = dim2(0, 36, 0, 36),
+            Position = dim2(0, 12, 0, 12),
+            Size = dim2(0, 32, 0, 32),
             BorderSizePixel = 0,
             ZIndex = 15,
         })
@@ -820,7 +820,7 @@ function library:window(properties)
             Parent = items["title"],
             AnchorPoint = vec2(0.5, 0.5),
             Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 26, 0, 26),
+            Size = dim2(0, 22, 0, 22),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             ImageColor3 = themes.preset.accent,
@@ -859,32 +859,84 @@ function library:window(properties)
             BackgroundColor3 = themes.preset.line,
         })
 
+        local socialGroup = library:create("Frame", {
+            Parent = items["main"],
+            AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -14, 0, 28),
+            Size = dim2(0, 0, 0, 34),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = themes.preset.element,
+            BackgroundTransparency = 0.35,
+            BorderSizePixel = 0,
+            ZIndex = 15,
+        })
+        library:create("UICorner", { Parent = socialGroup, CornerRadius = dim(0, 10) })
+        library:create("UIListLayout", {
+            Parent = socialGroup,
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = dim(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        })
+        library:create("UIPadding", {
+            Parent = socialGroup,
+            PaddingLeft = dim(0, 6),
+            PaddingRight = dim(0, 6),
+            PaddingTop = dim(0, 4),
+            PaddingBottom = dim(0, 4),
+        })
+        -- Brand icons (Discord / Telegram / YouTube) — separate from tab strip
         local socialLinks = {
-            { keys = { "discord", "Discord" }, icon = "message-circle" },
-            { keys = { "telegram", "Telegram" }, icon = "send" },
-            { keys = { "youtube", "Youtube", "YouTube" }, icon = "youtube" },
+            {
+                keys = { "telegram", "Telegram" },
+                -- paper-plane style
+                image = "rbxassetid://6031229361",
+                icon = "send",
+            },
+            {
+                keys = { "discord", "Discord" },
+                image = "rbxassetid://120249220493681",
+                icon = "message-circle",
+            },
+            {
+                keys = { "youtube", "Youtube", "YouTube" },
+                image = "rbxassetid://6031229347",
+                icon = "play",
+            },
         }
-        local socialOffset = 14
-        for i = #socialLinks, 1, -1 do
-            local link = socialLinks[i]
+        for index, link in ipairs(socialLinks) do
             local url
             for _, key in ipairs(link.keys) do
                 url = url or properties[key]
             end
             if url then
                 local btn = library:create("TextButton", {
-                    Parent = items["multi_holder"], Text = "", AutoButtonColor = false,
-                    AnchorPoint = vec2(1, 0.5), Position = dim2(1, -socialOffset - 46, 0.5, 0),
-                    Size = dim2(0, 30, 0, 30), ZIndex = 6, BorderSizePixel = 0,
+                    Parent = socialGroup,
+                    Text = "",
+                    AutoButtonColor = false,
+                    Size = dim2(0, 26, 0, 26),
+                    ZIndex = 16,
+                    BorderSizePixel = 0,
                     BackgroundColor3 = themes.preset.element,
+                    LayoutOrder = index,
                 })
                 library:create("UICorner", { Parent = btn, CornerRadius = dim(1, 0) })
                 local icon = library:create("ImageLabel", {
-                    Parent = btn, BackgroundTransparency = 1, AnchorPoint = vec2(0.5, 0.5),
-                    Position = dim2(0.5, 0, 0.5, 0), Size = dim2(0, 15, 0, 15),
-                    ImageColor3 = themes.preset.dimicon, BorderSizePixel = 0, ZIndex = 7,
+                    Parent = btn,
+                    BackgroundTransparency = 1,
+                    AnchorPoint = vec2(0.5, 0.5),
+                    Position = dim2(0.5, 0, 0.5, 0),
+                    Size = dim2(0, 14, 0, 14),
+                    ImageColor3 = themes.preset.dimicon,
+                    BorderSizePixel = 0,
+                    ZIndex = 17,
                 })
-                ApplyIcon(icon, link.icon)
+                if link.image then
+                    icon.Image = link.image
+                else
+                    ApplyIcon(icon, link.icon)
+                end
                 btn.MouseEnter:Connect(function()
                     library:tween(btn, { BackgroundColor3 = themes.preset.hover })
                     library:tween(icon, { ImageColor3 = rgb(255, 255, 255) })
@@ -894,209 +946,25 @@ function library:window(properties)
                     library:tween(icon, { ImageColor3 = themes.preset.dimicon })
                 end)
                 btn.MouseButton1Click:Connect(function()
-                    local ok = pcall(function()
-                        if setclipboard then setclipboard(url) end
+                    pcall(function()
+                        if setclipboard then setclipboard(tostring(url)) end
                     end)
                     pcall(function()
-                        if library.Notification then
-                            library:Notification({
-                                Title = ok and "Copied" or "Unsupported",
-                                Content = ok and (url .. " copied to clipboard") or "This executor can't set the clipboard.",
-                                Duration = 3,
-                            })
+                        if library.notify then
+                            library:notify("Link copied", 2)
                         end
                     end)
                 end)
-                socialOffset = socialOffset + 38
             end
         end
-
-
-        items["profile_btn"] = library:create("TextButton", {
-            Parent = items["multi_holder"], Name = "\0", Text = "", AutoButtonColor = false,
-            BackgroundTransparency = 1, AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -14, 0.5, 0), Size = dim2(0, 32, 0, 32), ZIndex = 6, BorderSizePixel = 0,
-        })
-        items["profile_avatar"] = library:create("ImageLabel", {
-            Parent = items["profile_btn"], Name = "\0", BackgroundColor3 = themes.preset.light,
-            Size = dim2(1, 0, 1, 0), BorderSizePixel = 0, ZIndex = 6,
-        })
-        library:create("UICorner", { Parent = items["profile_avatar"], CornerRadius = dim(1, 0) })
-
-        items["profile_ring"] = library:create("UIStroke", {
-            Parent = items["profile_avatar"], Color = themes.preset.accent, Thickness = 1.5,
-        })
-        library:apply_theme(items["profile_ring"], "accent", "Color")
-        task.spawn(function()
-            local ok, content = pcall(function()
-                return players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-            end)
-            if ok and content then items["profile_avatar"].Image = content end
-        end)
-
-        local profileOpen = false
-        local profilePopup = library:create("Frame", {
-            Parent = items["main"], Name = "\0", Size = dim2(0, 240, 0, 0),
-            BackgroundColor3 = themes.preset.section, BorderSizePixel = 0, Visible = false,
-            ZIndex = 80, ClipsDescendants = true, AnchorPoint = vec2(1, 0), Position = dim2(1, -10, 0, 56),
-        })
-        library:create("UICorner", { Parent = profilePopup, CornerRadius = dim(0, 10) })
-
-        local function rebuildProfile()
-            for _, ch in profilePopup:GetChildren() do
-                if not ch:IsA("UICorner") then ch:Destroy() end
-            end
-            local display = lp.DisplayName or lp.Name
-            local uname = "@" .. (lp.Name or "unknown")
-            local uid = tostring(lp.UserId or 0)
-            local age = "Unknown"
-            pcall(function() age = tostring(lp.AccountAge or 0) .. " days" end)
-
-            local bigAv = library:create("ImageLabel", {
-                Parent = profilePopup, BackgroundColor3 = themes.preset.light,
-                Position = dim2(0, 14, 0, 14), Size = dim2(0, 42, 0, 42),
-                BorderSizePixel = 0, Image = items["profile_avatar"].Image, ZIndex = 81,
-            })
-            library:create("UICorner", { Parent = bigAv, CornerRadius = dim(1, 0) })
-            local bigRing = library:create("UIStroke", { Parent = bigAv, Color = themes.preset.accent, Thickness = 1.5 })
-            library:apply_theme(bigRing, "accent", "Color")
-
-            library:create("TextLabel", {
-                Parent = profilePopup, FontFace = fonts.font, Text = display, TextSize = 15,
-                TextColor3 = themes.preset.text, BackgroundTransparency = 1,
-                Position = dim2(0, 66, 0, 16), Size = dim2(1, -80, 0, 18),
-                TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
-            })
-            library:create("TextLabel", {
-                Parent = profilePopup, FontFace = fonts.font, Text = uname, TextSize = 13,
-                TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-                Position = dim2(0, 66, 0, 36), Size = dim2(1, -80, 0, 16),
-                TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
-            })
-            local function infoRow(y, lab, val)
-                library:create("TextLabel", {
-                    Parent = profilePopup, FontFace = fonts.font, Text = lab, TextSize = 13,
-                    TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-                    Position = dim2(0, 14, 0, y), Size = dim2(0, 100, 0, 16),
-                    TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
-                })
-                library:create("TextLabel", {
-                    Parent = profilePopup, FontFace = fonts.font, Text = val, TextSize = 13,
-                    TextColor3 = themes.preset.text, BackgroundTransparency = 1,
-                    Position = dim2(0, 110, 0, y), Size = dim2(1, -124, 0, 16),
-                    TextXAlignment = Enum.TextXAlignment.Right, BorderSizePixel = 0, ZIndex = 81,
-                })
-            end
-            infoRow(68, "User ID", uid)
-            infoRow(90, "Account age", age)
-
-            library:create("TextLabel", {
-                Parent = profilePopup, FontFace = fonts.font, Text = "Menu toggle", TextSize = 13,
-                TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-                Position = dim2(0, 14, 0, 118), Size = dim2(0, 100, 0, 16),
-                TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
-            })
-            local currentKey = library.MenuKeybind or Enum.KeyCode.RightControl
-            local keyName = library.MenuKeyName or keys[currentKey] or (typeof(currentKey) == "EnumItem" and currentKey.Name) or "RCtrl"
-            local keyBox = library:create("TextButton", {
-                Parent = profilePopup, FontFace = fonts.font, Text = keyName, TextSize = 12,
-                TextColor3 = themes.preset.text, AutoButtonColor = false,
-                BackgroundColor3 = themes.preset.light,
-                Position = dim2(1, -70, 0, 114), Size = dim2(0, 56, 0, 22),
-                BorderSizePixel = 0, ZIndex = 81,
-            })
-            library:create("UICorner", { Parent = keyBox, CornerRadius = dim(0, 4) })
-            library.ProfileKeyBox = keyBox
-            local binding = false
-            keyBox.MouseButton1Click:Connect(function()
-                if binding then return end
-                binding = true
-                keyBox.Text = "..."
-                local conn
-                conn = uis.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.Keyboard then
-                        library.MenuKeybind = input.KeyCode
-                        local nm = keys[input.KeyCode] or input.KeyCode.Name
-                        keyBox.Text = nm
-                        if config_flags["menu_bind"] then
-                            pcall(function() config_flags["menu_bind"](input.KeyCode) end)
-                        end
-                        binding = false
-                        conn:Disconnect()
-                    end
-                end)
-            end)
-
-            local unloadBtn = library:create("TextButton", {
-                Parent = profilePopup, FontFace = fonts.font, Text = "Unload", TextSize = 14,
-                TextColor3 = themes.preset.text, AutoButtonColor = false,
-                BackgroundColor3 = themes.preset.light,
-                Position = dim2(0, 14, 0, 150), Size = dim2(1, -28, 0, 30),
-                BorderSizePixel = 0, ZIndex = 81,
-            })
-            library:create("UICorner", { Parent = unloadBtn, CornerRadius = dim(0, 6) })
-            unloadBtn.MouseButton1Click:Connect(function()
-                library:Notification({ Name = "Unloading", Description = "Chromatik is shutting down.", Icon = "power" })
-                task.delay(0.35, function() library:unload_menu() end)
-            end)
-        end
-
-        local function setProfileVisible(bool)
-            profileOpen = bool
-            if bool then
-                rebuildProfile()
-                profilePopup.Size = dim2(0, 240, 0, 0)
-                profilePopup.BackgroundTransparency = 1
-                profilePopup.Visible = true
-                library:tween(profilePopup, { Size = dim2(0, 240, 0, 194), BackgroundTransparency = 0 }, Enum.EasingStyle.Quint, 0.22)
-            else
-                library:tween(profilePopup, { Size = dim2(0, 240, 0, 0), BackgroundTransparency = 1 }, Enum.EasingStyle.Quint, 0.18)
-                task.delay(0.2, function()
-                    if not profileOpen then profilePopup.Visible = false end
-                end)
-            end
-        end
-
-        items["profile_btn"].MouseButton1Click:Connect(function()
-            setProfileVisible(not profileOpen)
-        end)
-
-        library:connection(uis.InputBegan, function(input)
-            if not profileOpen then return end
-            if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
-            local pos = input.Position
-            local pAbs, pSize = profilePopup.AbsolutePosition, profilePopup.AbsoluteSize
-            local bAbs, bSize = items["profile_btn"].AbsolutePosition, items["profile_btn"].AbsoluteSize
-            local overPopup = pos.X >= pAbs.X and pos.X <= pAbs.X + pSize.X and pos.Y >= pAbs.Y and pos.Y <= pAbs.Y + pSize.Y
-            local overBtn = pos.X >= bAbs.X and pos.X <= bAbs.X + bSize.X and pos.Y >= bAbs.Y and pos.Y <= bAbs.Y + bSize.Y
-            if not overPopup and not overBtn then setProfileVisible(false) end
-        end)
-
-        items["shadow"] = library:create("ImageLabel", {
-            ImageColor3 = rgb(0, 0, 0),
-            ScaleType = Enum.ScaleType.Slice,
-            Parent = items["main"],
-            BorderColor3 = rgb(0, 0, 0),
-            Name = "\0",
-            BackgroundColor3 = rgb(255, 255, 255),
-            Size = dim2(1, 75, 1, 75),
-            AnchorPoint = vec2(0.5, 0.5),
-            Image = "rbxassetid://112971167999062",
-            BackgroundTransparency = 1,
-            Position = dim2(0.5, 0, 0.5, 0),
-            SliceScale = 0.75,
-            ZIndex = -100,
-            BorderSizePixel = 0,
-            SliceCenter = Rect.new(vec2(112, 112), vec2(147, 147)),
-        })
 
         items["global_fade"] = library:create("Frame", {
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 56),
+            Position = dim2(0, 12, 0, 64),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -196, 1, -81),
+            Size = dim2(1, -24, 1, -76),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 2,
@@ -1397,9 +1265,9 @@ function library:tab(properties)
             Name = "\0",
             Visible = false,
             BackgroundTransparency = 1,
-            Position = dim2(0, 12, 0, 60),
+            Position = dim2(0, 12, 0, 64),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -24, 1, -72),
+            Size = dim2(1, -24, 1, -76),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -1408,6 +1276,19 @@ function library:tab(properties)
             ScrollBarImageColor3 = rgb(60,60,66),
             Active = true,
         })
+        library:create("UIListLayout", {
+            Parent = items["tab_holder"],
+            Padding = dim(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        })
+        library:create("UIPadding", {
+            Parent = items["tab_holder"],
+            PaddingLeft = dim(0, 4),
+            PaddingRight = dim(0, 4),
+            PaddingTop = dim(0, 4),
+            PaddingBottom = dim(0, 12),
+        })
+
 
         items["button"] = library:create("TextButton", {
             FontFace = fonts.font,
@@ -1428,8 +1309,8 @@ function library:tab(properties)
         library:apply_theme(items["button"], "accent", "BackgroundColor3")
         library:create("UIPadding", {
             Parent = items["button"],
-            PaddingLeft = dim(0, 9),
-            PaddingRight = dim(0, 9),
+            PaddingLeft = dim(0, 10),
+            PaddingRight = dim(0, 10),
         })
 
         items["icon"] = library:create("ImageLabel", {
@@ -1680,7 +1561,7 @@ function library:tab(properties)
             if selected_tab[4] ~= items["tab_holder"] then
                 self.items["global_fade"].BackgroundTransparency = 0
                 library:tween(self.items["global_fade"], { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.4)
-                selected_tab[4].Size = dim2(1, -24, 1, -72)
+                selected_tab[4].Size = dim2(1, -24, 1, -76)
             end
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
@@ -1696,7 +1577,7 @@ function library:tab(properties)
         library:tween(items["icon"], { ImageColor3 = rgb(255, 255, 255) })
         library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 0 }, Enum.EasingStyle.Quad, 0.22)
         items["name"].Visible = true
-        library:tween(items["tab_holder"], { Size = dim2(1, -24, 1, -72) }, Enum.EasingStyle.Quad, 0.35)
+        library:tween(items["tab_holder"], { Size = dim2(1, -24, 1, -76) }, Enum.EasingStyle.Quad, 0.35)
 
         items["tab_holder"].Visible = true
         items["tab_holder"].Parent = self.items["main"]
@@ -2072,7 +1953,7 @@ function library.OpenSearch()
     library:create("UIStroke", { Parent = box, Color = rgb(48,48,54), Thickness = 1 })
     local title = library:create("TextLabel", {
         Parent = box, BackgroundTransparency = 1, Position = dim2(0, 16, 0, 10),
-        Size = dim2(1, -40, 0, 22), FontFace = fonts.font, Text = "Search",
+        Size = dim2(1, -40, 0, 22), FontFace = fonts.font, Text = "Search...",
         TextSize = 16, TextColor3 = rgb(255,255,255), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 402,
     })
     local close = library:create("TextButton", {
@@ -2232,7 +2113,7 @@ function library:section(properties)
         end
         items["outline"] = library:create("Frame", {
             Name = "\0",
-            Parent = colParent or self.items["column"],
+            Parent = colParent or (self.items and self.items["column"]) or (self.items and self.items["tab_holder"]),
             BorderColor3 = rgb(0, 0, 0),
             Size = dim2(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
@@ -7046,18 +6927,34 @@ function library:Login(options)
         library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
     end
 
-    local glowA = library:create("Frame", {
-        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.12, 0, 0.15, 0),
-        Size = dim2(0, 220, 0, 220), BackgroundColor3 = themes.preset.accent,
-        BackgroundTransparency = 0.9, BorderSizePixel = 0, ZIndex = 81,
-    })
-    library:create("UICorner", { Parent = glowA, CornerRadius = dim(1, 0) })
-    local glowB = library:create("Frame", {
-        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.9, 0, 0.88, 0),
-        Size = dim2(0, 260, 0, 260), BackgroundColor3 = themes.preset.accent,
-        BackgroundTransparency = 0.93, BorderSizePixel = 0, ZIndex = 81,
-    })
-    library:create("UICorner", { Parent = glowB, CornerRadius = dim(1, 0) })
+    local function softOrb(xScale, yScale, size, transparency)
+        local orb = library:create("Frame", {
+            Parent = card, AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(xScale, 0, yScale, 0),
+            Size = dim2(0, size, 0, size),
+            BackgroundColor3 = themes.preset.accent,
+            BackgroundTransparency = transparency,
+            BorderSizePixel = 0, ZIndex = 81,
+        })
+        library:create("UICorner", { Parent = orb, CornerRadius = dim(1, 0) })
+        return orb
+    end
+    local glowA = softOrb(0.14, 0.18, 260, 0.88)
+    local glowB = softOrb(0.88, 0.82, 300, 0.91)
+    local glowC = softOrb(0.55, 0.08, 120, 0.94)
+    local glowD = softOrb(0.08, 0.75, 140, 0.93)
+    task.spawn(function()
+        local t0 = 0
+        while card and card.Parent do
+            t0 = t0 + task.wait()
+            pcall(function()
+                glowA.Position = dim2(0.14 + math.sin(t0 * 0.35) * 0.03, 0, 0.18 + math.cos(t0 * 0.28) * 0.04, 0)
+                glowB.Position = dim2(0.88 + math.cos(t0 * 0.3) * 0.03, 0, 0.82 + math.sin(t0 * 0.25) * 0.03, 0)
+                glowC.BackgroundTransparency = 0.93 + math.sin(t0 * 0.8) * 0.03
+                glowD.BackgroundTransparency = 0.92 + math.cos(t0 * 0.7) * 0.03
+            end)
+        end
+    end)
 
     -- form card area
     local form = library:create("Frame", {
@@ -7169,13 +7066,13 @@ function library:Login(options)
     })
 
     local errorLabel = library:create("TextLabel", {
-        Parent = form, Position = dim2(0, 0, 0, signY + 50), Size = dim2(1, 0, 0, 16),
+        Parent = form, Position = dim2(0, 0, 0, signY + 52), Size = dim2(1, 0, 0, 16),
         Text = "", TextColor3 = rgb(240, 90, 90), FontFace = fonts.font, TextSize = 12,
         BackgroundTransparency = 1, TextTransparency = 1, ZIndex = 83,
     })
 
     local rememberOn = cfg.remember and saved.remember == true
-    local rememberY = signY + 72
+    local rememberY = signY + 96
     if cfg.remember then
         local rememberRow = library:create("Frame", {
             Parent = form, Position = dim2(0, 0, 0, rememberY), Size = dim2(1, 0, 0, 18),
@@ -7220,13 +7117,13 @@ function library:Login(options)
     library:create("UICorner", { Parent = signing, CornerRadius = dim(0, 14) })
     local spin = library:create("ImageLabel", {
         Parent = signing, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.48, 0),
-        Size = dim2(0, 28, 0, 28), BackgroundTransparency = 1,
+        Size = dim2(0, 48, 0, 48), BackgroundTransparency = 1,
         ImageColor3 = themes.preset.accent, ZIndex = 91,
         Image = "rbxassetid://4965945816",
     })
     library:apply_theme(spin, "accent", "ImageColor3")
     library:create("TextLabel", {
-        Parent = signing, AnchorPoint = vec2(0.5, 0), Position = dim2(0.5, 0, 0.48, 24),
+        Parent = signing, AnchorPoint = vec2(0.5, 0), Position = dim2(0.5, 0, 0.48, 36),
         Size = dim2(0, 160, 0, 20), Text = "Signing in...", TextColor3 = themes.preset.dimtext,
         FontFace = fonts.font, TextSize = 13, BackgroundTransparency = 1, ZIndex = 91,
     })
