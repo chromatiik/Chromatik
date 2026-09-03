@@ -1,4 +1,4 @@
--- VERDIAN_BUILD 2026-09-03-d | tab return cfg + content fix
+-- VERDIAN_BUILD 2026-09-03-e | tab return cfg + content fix
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.4.3-verdian",
+    version = "1.4.4-verdian",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -1586,7 +1586,9 @@ function library:tab(properties)
             cfg.pages[#cfg.pages + 1] = setmetatable(data, library)
         end
 
-        cfg.pages[1].open_page()
+        if cfg.pages[1] and cfg.pages[1].open_page then
+            cfg.pages[1].open_page()
+        end
     end
 
     function cfg.open_tab()
