@@ -79,6 +79,14 @@ local library = {
 }
 
 library.__index = library
+library.Searchables = library.Searchables or {}
+
+function library:RegisterSearchable(entry)
+    if type(entry) ~= "table" or not entry.name then return end
+    library.Searchables = library.Searchables or {}
+    table.insert(library.Searchables, entry)
+end
+
 
 local function ensure_folders()
     for _, path in next, library.folders do
@@ -862,7 +870,7 @@ function library:window(properties)
         local socialGroup = library:create("Frame", {
             Parent = items["main"],
             AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -14, 0, 28),
+            Position = dim2(1, -48, 0, 28),
             Size = dim2(0, 0, 0, 34),
             AutomaticSize = Enum.AutomaticSize.X,
             BackgroundColor3 = themes.preset.element,
@@ -958,7 +966,31 @@ function library:window(properties)
             end
         end
 
-        items["global_fade"] = library:create("Frame", {
+        
+        -- user avatar (far right)
+        do
+            local avatarBtn = library:create("ImageButton", {
+                Parent = items["main"],
+                AnchorPoint = vec2(1, 0.5),
+                Position = dim2(1, -12, 0, 28),
+                Size = dim2(0, 28, 0, 28),
+                BackgroundColor3 = themes.preset.element,
+                AutoButtonColor = false,
+                BorderSizePixel = 0,
+                ZIndex = 16,
+            })
+            library:create("UICorner", { Parent = avatarBtn, CornerRadius = dim(1, 0) })
+            library:create("UIStroke", { Parent = avatarBtn, Color = themes.preset.accent, Thickness = 1.2 })
+            task.spawn(function()
+                local ok, content = pcall(function()
+                    return players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+                end)
+                if ok and content then avatarBtn.Image = content end
+            end)
+            items["avatar_btn"] = avatarBtn
+        end
+
+items["global_fade"] = library:create("Frame", {
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
@@ -1911,144 +1943,288 @@ function library.SnapSection(outline, mx, my)
 end
 
 function library.OpenSearch()
-    library._searchIndex = library._searchIndex or {}
+    library.Searchables = library.Searchables or {}
+    library._searchIndex = {}
+    for _, entry in ipairs(library.Searchables) do
+        table.insert(library._searchIndex, entry)
+    end
     if #library._searchIndex == 0 then
         for flag, _ in pairs(library.flags or {}) do
-            table.insert(library._searchIndex, { name = tostring(flag), flag = flag })
+            table.insert(library._searchIndex, { name = tostring(flag), flag = flag, kind = "Flag" })
         end
     end
+
     if library._searchGui and library._searchGui.Parent then
         library._searchGui:Destroy()
     end
+
     local host = library["items"]
     local main = library._menuMain
     if not main and host then
         pcall(function()
             for _, ch in ipairs(host:GetChildren()) do
-                if ch:IsA("Frame") and ch.AbsoluteSize.X > 400 then main = ch break end
+                if ch:IsA("Frame") and ch.AbsoluteSize.X > 400 then
+                    main = ch
+                    break
+                end
             end
         end)
     end
+    if not main then
+        main = host
+    end
+
     local gui = library:create("Frame", {
-        Parent = main or host,
+        Parent = main,
         Size = dim2(1, 0, 1, 0),
         BackgroundTransparency = 1,
-        ZIndex = 400,
+        ZIndex = 500,
     })
     library._searchGui = gui
+
     local dimmer = library:create("TextButton", {
-        Parent = gui, Size = dim2(1,0,1,0), BackgroundColor3 = rgb(0,0,0),
-        BackgroundTransparency = 0.45, Text = "", AutoButtonColor = false, ZIndex = 400,
+        Parent = gui,
+        Size = dim2(1, 0, 1, 0),
+        BackgroundColor3 = rgb(0, 0, 0),
+        BackgroundTransparency = 0.5,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 500,
     })
-    local box = library:create("Frame", {
+
+    local panel = library:create("Frame", {
         Parent = gui,
         AnchorPoint = vec2(0.5, 0.5),
         Position = dim2(0.5, 0, 0.5, 0),
-        Size = dim2(0, 380, 0, 320),
-        BackgroundColor3 = rgb(22, 22, 26),
+        Size = dim2(0, 420, 0, 360),
+        BackgroundColor3 = themes.preset.background,
         BorderSizePixel = 0,
-        ZIndex = 401,
+        ZIndex = 501,
     })
-    library:create("UICorner", { Parent = box, CornerRadius = dim(0, 12) })
-    library:create("UIStroke", { Parent = box, Color = rgb(48,48,54), Thickness = 1 })
-    local title = library:create("TextLabel", {
-        Parent = box, BackgroundTransparency = 1, Position = dim2(0, 16, 0, 10),
-        Size = dim2(1, -40, 0, 22), FontFace = fonts.font, Text = "Search...",
-        TextSize = 16, TextColor3 = rgb(255,255,255), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 402,
+    library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 12) })
+    library:create("UIStroke", { Parent = panel, Color = themes.preset.line, Thickness = 1 })
+
+    library:create("TextLabel", {
+        Parent = panel,
+        BackgroundTransparency = 1,
+        Position = dim2(0, 16, 0, 12),
+        Size = dim2(1, -48, 0, 20),
+        FontFace = fonts.font,
+        Text = "Search",
+        TextSize = 15,
+        TextColor3 = themes.preset.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 502,
     })
+
     local close = library:create("TextButton", {
-        Parent = box, Position = dim2(1, -28, 0, 10), Size = dim2(0, 18, 0, 18),
-        BackgroundTransparency = 1, Text = "x", TextColor3 = themes.preset.dimtext,
-        FontFace = fonts.font, TextSize = 16, ZIndex = 402,
+        Parent = panel,
+        Position = dim2(1, -30, 0, 10),
+        Size = dim2(0, 20, 0, 20),
+        BackgroundTransparency = 1,
+        Text = "×",
+        TextColor3 = themes.preset.dimtext,
+        FontFace = fonts.font,
+        TextSize = 18,
+        ZIndex = 502,
     })
+
+    local inputWrap = library:create("Frame", {
+        Parent = panel,
+        Position = dim2(0, 16, 0, 40),
+        Size = dim2(1, -32, 0, 34),
+        BackgroundColor3 = themes.preset.element,
+        BorderSizePixel = 0,
+        ZIndex = 502,
+    })
+    library:create("UICorner", { Parent = inputWrap, CornerRadius = dim(0, 8) })
+
+    local sIcon = library:create("ImageLabel", {
+        Parent = inputWrap,
+        BackgroundTransparency = 1,
+        Size = dim2(0, 14, 0, 14),
+        Position = dim2(0, 10, 0.5, -7),
+        ImageColor3 = themes.preset.dimicon,
+        ZIndex = 503,
+    })
+    pcall(function() ApplyIcon(sIcon, "search") end)
+
     local input = library:create("TextBox", {
-        Parent = box, Position = dim2(0, 16, 0, 40), Size = dim2(1, -32, 0, 32),
-        BackgroundColor3 = rgb(16,16,18), BorderSizePixel = 0, FontFace = fonts.font,
-        Text = "", PlaceholderText = "Search sections and elements", TextColor3 = rgb(255,255,255),
-        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 402,
+        Parent = inputWrap,
+        Position = dim2(0, 32, 0, 0),
+        Size = dim2(1, -40, 1, 0),
+        BackgroundTransparency = 1,
+        FontFace = fonts.font,
+        Text = "",
+        PlaceholderText = "Search toggles, sliders, sections...",
+        PlaceholderColor3 = themes.preset.dimtext,
+        TextColor3 = themes.preset.text,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ClearTextOnFocus = false,
+        ZIndex = 503,
     })
-    library:create("UICorner", { Parent = input, CornerRadius = dim(0, 7) })
-    library:create("UIPadding", { Parent = input, PaddingLeft = dim(0, 28) })
-    local ic = library:create("ImageLabel", {
-        Parent = input, BackgroundTransparency = 1, Size = dim2(0, 14, 0, 14),
-        Position = dim2(0, -20, 0.5, -7), Image = "rbxassetid://6031094678",
-        ImageColor3 = themes.preset.dimtext, ZIndex = 403,
-    })
+
     local list = library:create("ScrollingFrame", {
-        Parent = box, Position = dim2(0, 16, 0, 84), Size = dim2(1, -32, 1, -100),
-        BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
-        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = dim2(0,0,0,0), ZIndex = 402,
+        Parent = panel,
+        Position = dim2(0, 16, 0, 86),
+        Size = dim2(1, -32, 1, -100),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = rgb(60, 60, 66),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        CanvasSize = dim2(0, 0, 0, 0),
+        ZIndex = 502,
     })
-    library:create("UIListLayout", { Parent = list, Padding = dim(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+    library:create("UIListLayout", {
+        Parent = list,
+        Padding = dim(0, 5),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+
+    local empty = library:create("TextLabel", {
+        Parent = panel,
+        BackgroundTransparency = 1,
+        Position = dim2(0, 0, 0, 160),
+        Size = dim2(1, 0, 0, 20),
+        FontFace = fonts.font,
+        Text = "Start typing to search",
+        TextSize = 13,
+        TextColor3 = themes.preset.dimtext,
+        ZIndex = 502,
+    })
+
+    local function flash(obj)
+        if not obj or not obj.Parent then return end
+        local old = obj.BackgroundColor3
+        pcall(function()
+            library:tween(obj, { BackgroundColor3 = themes.preset.accent }, Enum.EasingStyle.Quad, 0.15)
+            task.delay(0.35, function()
+                pcall(function()
+                    library:tween(obj, { BackgroundColor3 = old }, Enum.EasingStyle.Quad, 0.35)
+                end)
+            end)
+        end)
+    end
+
+    local function jump(item)
+        pcall(function()
+            local tab = item.tab
+            if tab and tab.open_tab then
+                tab.open_tab()
+            elseif tab and type(tab.Select) == "function" then
+                tab:Select()
+            end
+            local sec = item.section
+            if sec and sec.items and sec.items["outline"] then
+                flash(sec.items["outline"])
+            end
+        end)
+        if library._searchGui then
+            pcall(function() library._searchGui:Destroy() end)
+            library._searchGui = nil
+        end
+    end
+
     local function render(q)
-        for _, c in ipairs(list:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-        q = tostring(q or ""):lower()
-        if q == "" then return end
+        for _, child in ipairs(list:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        q = tostring(q or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+        empty.Visible = (q == "")
+        if q == "" then
+            empty.Text = "Start typing to search"
+            return
+        end
         local n = 0
         for _, item in ipairs(library._searchIndex) do
-            if n >= 50 then break end
+            if n >= 60 then break end
             local name = tostring(item.name or "")
-            if q == "" or name:lower():find(q, 1, true) then
-                n += 1
+            local flag = tostring(item.flag or "")
+            local kind = tostring(item.kind or "")
+            local hay = (name .. " " .. flag .. " " .. kind):lower()
+            if hay:find(q, 1, true) then
+                n = n + 1
+                local path = name
+                if item.section and item.section.name then
+                    path = tostring(item.section.name) .. "  ·  " .. name
+                end
                 local b = library:create("TextButton", {
-                    Parent = list, Size = dim2(1, 0, 0, 34), BackgroundColor3 = rgb(28,28,32),
-                    BorderSizePixel = 0, Text = "", AutoButtonColor = false, ZIndex = 403,
+                    Parent = list,
+                    Size = dim2(1, 0, 0, 40),
+                    BackgroundColor3 = themes.preset.element,
+                    BorderSizePixel = 0,
+                    Text = "",
+                    AutoButtonColor = false,
+                    ZIndex = 503,
                 })
-                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
+                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 7) })
                 library:create("Frame", {
-                    Parent = b, Size = dim2(0, 3, 1, -10), Position = dim2(0, 6, 0, 5),
-                    BackgroundColor3 = themes.preset.accent, BorderSizePixel = 0, ZIndex = 404,
+                    Parent = b,
+                    Size = dim2(0, 3, 1, -12),
+                    Position = dim2(0, 6, 0, 6),
+                    BackgroundColor3 = themes.preset.accent,
+                    BorderSizePixel = 0,
+                    ZIndex = 504,
                 })
                 library:create("TextLabel", {
-                    Parent = b, BackgroundTransparency = 1, Position = dim2(0, 16, 0, 0),
-                    Size = dim2(1, -20, 1, 0), FontFace = fonts.font, Text = name,
-                    TextSize = 14, TextColor3 = rgb(255,255,255), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 404,
+                    Parent = b,
+                    BackgroundTransparency = 1,
+                    Position = dim2(0, 16, 0, 4),
+                    Size = dim2(1, -24, 0, 18),
+                    FontFace = fonts.font,
+                    Text = path,
+                    TextSize = 13,
+                    TextColor3 = themes.preset.text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 504,
+                })
+                library:create("TextLabel", {
+                    Parent = b,
+                    BackgroundTransparency = 1,
+                    Position = dim2(0, 16, 0, 20),
+                    Size = dim2(1, -24, 0, 14),
+                    FontFace = fonts.font,
+                    Text = (kind ~= "" and kind or "Option") .. (flag ~= "" and ("  ·  " .. flag) or ""),
+                    TextSize = 11,
+                    TextColor3 = themes.preset.dimtext,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 504,
                 })
                 b.MouseButton1Click:Connect(function()
-                    pcall(function()
-                        local tab = item.tab
-                        if type(tab) == "table" and not tab.open_tab and tab._sidebar then
-                            tab = tab._sidebar
-                        end
-                        if type(tab) == "table" and tab.open_tab then
-                            tab.open_tab()
-                        end
-                        local page = item.page
-                        if type(page) == "table" and page.open_page then
-                            page.open_page()
-                        end
-                    end)
-                    task.delay(0.2, function()
-                        pcall(function()
-                            local inst = item.inst
-                            if inst and inst.Parent then
-                                local old = inst.BackgroundColor3
-                                inst.BackgroundColor3 = themes.preset.accent
-                                task.delay(0.8, function()
-                                    pcall(function() inst.BackgroundColor3 = old end)
-                                end)
-                            end
-                        end)
-                    end)
-                    pcall(function() gui:Destroy() end)
+                    jump(item)
                 end)
             end
         end
+        if n == 0 then
+            empty.Visible = true
+            empty.Text = "No results"
+        end
     end
-    input:GetPropertyChangedSignal("Text"):Connect(function() render(input.Text) end)
-    dimmer.MouseButton1Click:Connect(function() pcall(function() gui:Destroy() end) end)
-    close.MouseButton1Click:Connect(function() pcall(function() gui:Destroy() end) end)
-    local empty = library:create("TextLabel", {
-        Parent = box, BackgroundTransparency = 1, Position = dim2(0, 0, 0, 140),
-        Size = dim2(1, 0, 0, 20), FontFace = fonts.font, Text = "Start typing to search",
-        TextSize = 14, TextColor3 = themes.preset.dimtext, ZIndex = 402,
-    })
+
+    local function closeSearch()
+        if library._searchGui then
+            pcall(function() library._searchGui:Destroy() end)
+            library._searchGui = nil
+        end
+    end
+
+    close.MouseButton1Click:Connect(closeSearch)
+    dimmer.MouseButton1Click:Connect(closeSearch)
     input:GetPropertyChangedSignal("Text"):Connect(function()
-        empty.Visible = input.Text == ""
+        render(input.Text)
     end)
     render("")
-    task.defer(function() input:CaptureFocus() end)
+    task.defer(function()
+        pcall(function() input:CaptureFocus() end)
+    end)
 end
+
 
 function library:section(properties)
     local cfg = {
@@ -2062,6 +2238,8 @@ function library:section(properties)
     }
 
     local items = cfg.items
+    library._lastSection = cfg
+    library._lastSectionTab = self
     do
         local colParent = self.items and self.items["column"]
         if (not colParent or not colParent.Parent) and self.items and self.items["tab_holder"] then
@@ -2324,6 +2502,16 @@ function library:toggle(options)
 
     flags[cfg.flag] = cfg.default
 
+    pcall(function()
+        library:RegisterSearchable({
+            name = cfg.name,
+            flag = cfg.flag,
+            kind = "Toggle",
+            tab = library._lastSidebarTab or library._lastSectionTab,
+            section = library._lastSection,
+        })
+    end)
+
     local items = cfg.items
     items["toggle"] = library:create("TextButton", {
         FontFace = fonts.small,
@@ -2474,6 +2662,16 @@ function library:slider(options)
     }
 
     flags[cfg.flag] = cfg.default
+
+    pcall(function()
+        library:RegisterSearchable({
+            name = cfg.name,
+            flag = cfg.flag,
+            kind = "Slider",
+            tab = library._lastSidebarTab or library._lastSectionTab,
+            section = library._lastSection,
+        })
+    end)
 
     local items = cfg.items
     items["slider"] = library:create("Frame", {
@@ -6845,14 +7043,13 @@ end
 
 function library:Login(options)
     options = options or {}
-    local fields = options.fields or options.Fields or { "username", "password", "key" }
+    local fields = options.fields or options.Fields or { "key" }
     local cfg = {
         title = options.title or options.Title or "Verdian Login",
         fields = fields,
         remember = options.remember ~= false and options.Remember ~= false,
         onSubmit = options.onSubmit or options.OnSubmit or options.callback or options.Callback,
         onSuccess = options.onSuccess or options.OnSuccess or function() end,
-        copyright = options.copyright or options.Copyright or "Copyright 2026 Verdian. All rights reserved.",
         saveFile = library.directory .. "/login_" .. tostring(options.saveKey or options.SaveKey or "default") .. ".json",
         parent = options.Parent or options.parent,
         window = options.Window or options.window,
@@ -6865,9 +7062,7 @@ function library:Login(options)
         if f == "password" or f == "pass" then wantPass = true end
         if f == "key" or f == "license" then wantKey = true end
     end
-    if not wantUser and not wantPass and not wantKey then
-        wantUser, wantPass, wantKey = true, true, true
-    end
+    if not wantUser and not wantPass and not wantKey then wantKey = true end
 
     local saved = {}
     pcall(function()
@@ -6927,77 +7122,46 @@ function library:Login(options)
         library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
     end
 
-    local function softOrb(xScale, yScale, size, transparency)
-        local orb = library:create("Frame", {
-            Parent = card, AnchorPoint = vec2(0.5, 0.5),
-            Position = dim2(xScale, 0, yScale, 0),
-            Size = dim2(0, size, 0, size),
-            BackgroundColor3 = themes.preset.accent,
-            BackgroundTransparency = transparency,
-            BorderSizePixel = 0, ZIndex = 81,
-        })
-        library:create("UICorner", { Parent = orb, CornerRadius = dim(1, 0) })
-        return orb
-    end
-    local glowA = softOrb(0.14, 0.18, 260, 0.88)
-    local glowB = softOrb(0.88, 0.82, 300, 0.91)
-    local glowC = softOrb(0.55, 0.08, 120, 0.94)
-    local glowD = softOrb(0.08, 0.75, 140, 0.93)
-    task.spawn(function()
-        local t0 = 0
-        while card and card.Parent do
-            t0 = t0 + task.wait()
-            pcall(function()
-                glowA.Position = dim2(0.14 + math.sin(t0 * 0.35) * 0.03, 0, 0.18 + math.cos(t0 * 0.28) * 0.04, 0)
-                glowB.Position = dim2(0.88 + math.cos(t0 * 0.3) * 0.03, 0, 0.82 + math.sin(t0 * 0.25) * 0.03, 0)
-                glowC.BackgroundTransparency = 0.93 + math.sin(t0 * 0.8) * 0.03
-                glowD.BackgroundTransparency = 0.92 + math.cos(t0 * 0.7) * 0.03
-            end)
-        end
-    end)
-
-    -- form card area
+    -- centered form (no background orbs / no copyright)
     local form = library:create("Frame", {
         Parent = card,
         AnchorPoint = vec2(0.5, 0.5),
-        Position = dim2(0.5, 0, 0.48, 0),
-        Size = dim2(0, 300, 0, 340),
+        Position = dim2(0.5, 0, 0.5, 0),
+        Size = dim2(0, 300, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         ZIndex = 82,
     })
 
-    local title = library:create("TextLabel", {
-        Parent = form, Position = dim2(0, 0, 0, 0), Size = dim2(1, 0, 0, 28),
-        FontFace = fonts.font, Text = cfg.title, TextSize = 22,
-        TextColor3 = themes.preset.text, BackgroundTransparency = 1, ZIndex = 83,
+    library:create("TextLabel", {
+        Parent = form, Size = dim2(1, 0, 0, 26), FontFace = fonts.font,
+        Text = cfg.title, TextSize = 20, TextColor3 = themes.preset.text,
+        BackgroundTransparency = 1, ZIndex = 83,
     })
     local underline = library:create("Frame", {
-        Parent = form, AnchorPoint = vec2(0.5, 0), Position = dim2(0.5, 0, 0, 30),
-        Size = dim2(0, 72, 0, 2), BorderSizePixel = 0, BackgroundColor3 = themes.preset.accent, ZIndex = 83,
+        Parent = form, AnchorPoint = vec2(0.5, 0), Position = dim2(0.5, 0, 0, 28),
+        Size = dim2(0, 56, 0, 2), BorderSizePixel = 0,
+        BackgroundColor3 = themes.preset.accent, ZIndex = 83,
     })
     library:apply_theme(underline, "accent", "BackgroundColor3")
-    library:create("UIGradient", {
-        Parent = underline,
-        Transparency = numseq({ numkey(0, 0), numkey(1, 0.85) }),
-    })
 
     local function makeInput(placeholder, iconName, y, isPass)
         local wrap = library:create("Frame", {
-            Parent = form, Position = dim2(0, 0, 0, y), Size = dim2(1, 0, 0, 44),
+            Parent = form, Position = dim2(0, 0, 0, y), Size = dim2(1, 0, 0, 42),
             BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 83,
         })
         library:create("UICorner", { Parent = wrap, CornerRadius = dim(0, 8) })
         local icon = library:create("ImageLabel", {
-            Parent = wrap, AnchorPoint = vec2(0, 0.5), Position = dim2(0, 14, 0.5, 0),
+            Parent = wrap, AnchorPoint = vec2(0, 0.5), Position = dim2(0, 12, 0.5, 0),
             Size = dim2(0, 14, 0, 14), BackgroundTransparency = 1,
             ImageColor3 = themes.preset.dimicon, ZIndex = 84,
         })
         ApplyIcon(icon, iconName)
         local box = library:create("TextBox", {
-            Parent = wrap, Position = dim2(0, 38, 0, 0), Size = dim2(1, -50, 1, 0),
+            Parent = wrap, Position = dim2(0, 36, 0, 0), Size = dim2(1, -48, 1, 0),
             BackgroundTransparency = 1, PlaceholderText = placeholder, Text = "",
             PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
-            FontFace = fonts.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
+            FontFace = fonts.font, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
             ClearTextOnFocus = false, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 84,
         })
         local state = { value = "" }
@@ -7006,7 +7170,7 @@ function library:Login(options)
             box:GetPropertyChangedSignal("Text"):Connect(function()
                 if suppress then return end
                 local shown = box.Text or ""
-                if #shown > 256 then
+                if #shown > 128 then
                     suppress = true
                     box.Text = string.rep("•", math.min(#state.value, 64))
                     suppress = false
@@ -7016,9 +7180,7 @@ function library:Login(options)
                     state.value = state.value:sub(1, #shown)
                 else
                     local delta = shown:gsub("•", "")
-                    if #delta > 0 then
-                        state.value = (state.value .. delta):sub(1, 128)
-                    end
+                    if #delta > 0 then state.value = (state.value .. delta):sub(1, 64) end
                 end
                 suppress = true
                 box.Text = string.rep("•", #state.value)
@@ -7028,54 +7190,51 @@ function library:Login(options)
         return wrap, box, state
     end
 
-    local y = 52
+    local fieldY = 48
     local usernameBox, passwordBox, keyBox, passwordState
     if wantUser then
-        local _, box = makeInput("Username", "user", y, false)
+        local _, box = makeInput("Username", "user", fieldY, false)
         usernameBox = box
         usernameBox.Text = tostring(saved.username or "")
-        y = y + 54
+        fieldY = fieldY + 50
     end
     if wantPass then
-        local _, box, st = makeInput("Password", "lock", y, true)
+        local _, box, st = makeInput("Password", "lock", fieldY, true)
         passwordBox, passwordState = box, st
-        if type(saved.password) == "string" and #saved.password > 0 and #saved.password < 128 then
+        if type(saved.password) == "string" and #saved.password > 0 and #saved.password < 64 then
             passwordState.value = saved.password
             passwordBox.Text = string.rep("•", #saved.password)
         end
-        y = y + 54
+        fieldY = fieldY + 50
     end
     if wantKey then
-        local _, box = makeInput("License", "key-round", y, false)
+        local _, box = makeInput("License", "key-round", fieldY, false)
         keyBox = box
         keyBox.Text = tostring(saved.key or "")
-        y = y + 54
+        fieldY = fieldY + 50
     end
 
-    local signY = y + 10
+    local signY = fieldY + 6
     local signInBtn = library:create("TextButton", {
-        Parent = form, Position = dim2(0, 0, 0, signY), Size = dim2(1, 0, 0, 44),
-        BackgroundColor3 = themes.preset.accent, AutoButtonColor = false, Text = "",
+        Parent = form, Position = dim2(0, 0, 0, signY), Size = dim2(1, 0, 0, 42),
+        BackgroundColor3 = themes.preset.accent, AutoButtonColor = false, Text = "Sign in",
+        FontFace = fonts.font, TextSize = 14, TextColor3 = rgb(255, 255, 255),
         BorderSizePixel = 0, ZIndex = 83,
     })
     library:create("UICorner", { Parent = signInBtn, CornerRadius = dim(0, 8) })
     library:apply_theme(signInBtn, "accent", "BackgroundColor3")
-    local signInLabel = library:create("TextLabel", {
-        Parent = signInBtn, Size = dim2(1, 0, 1, 0), Text = "Sign in", FontFace = fonts.font,
-        TextSize = 15, TextColor3 = rgb(255, 255, 255), BackgroundTransparency = 1, ZIndex = 84,
-    })
 
     local errorLabel = library:create("TextLabel", {
-        Parent = form, Position = dim2(0, 0, 0, signY + 52), Size = dim2(1, 0, 0, 16),
+        Parent = form, Position = dim2(0, 0, 0, signY + 48), Size = dim2(1, 0, 0, 14),
         Text = "", TextColor3 = rgb(240, 90, 90), FontFace = fonts.font, TextSize = 12,
-        BackgroundTransparency = 1, TextTransparency = 1, ZIndex = 83,
+        BackgroundTransparency = 1, ZIndex = 83,
     })
 
+    -- remember me: close under sign in (no big gap)
     local rememberOn = cfg.remember and saved.remember == true
-    local rememberY = signY + 96
     if cfg.remember then
         local rememberRow = library:create("Frame", {
-            Parent = form, Position = dim2(0, 0, 0, rememberY), Size = dim2(1, 0, 0, 18),
+            Parent = form, Position = dim2(0, 0, 0, signY + 52), Size = dim2(1, 0, 0, 18),
             BackgroundTransparency = 1, ZIndex = 83,
         })
         local rememberCheck = library:create("TextButton", {
@@ -7083,15 +7242,17 @@ function library:Login(options)
             BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 83,
         })
         library:create("UICorner", { Parent = rememberCheck, CornerRadius = dim(0, 4) })
+        library:create("UIStroke", { Parent = rememberCheck, Color = themes.preset.line, Thickness = 1 })
         local checkMark = library:create("ImageLabel", {
-            Parent = rememberCheck, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1,
+            Parent = rememberCheck, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 11, 0, 11), BackgroundTransparency = 1,
             ImageColor3 = rgb(255, 255, 255), ImageTransparency = 1, ZIndex = 84,
         })
         ApplyIcon(checkMark, "check")
         library:create("TextLabel", {
-            Parent = rememberRow, Position = dim2(0, 24, 0, 0), Size = dim2(1, -24, 1, 0),
+            Parent = rememberRow, Position = dim2(0, 22, 0, 0), Size = dim2(1, -22, 1, 0),
             Text = "Remember me", TextColor3 = themes.preset.dimtext, FontFace = fonts.font,
-            TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, ZIndex = 83,
+            TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, ZIndex = 83,
         })
         local function setRemember(v)
             rememberOn = v
@@ -7100,15 +7261,11 @@ function library:Login(options)
         end
         rememberCheck.MouseButton1Click:Connect(function() setRemember(not rememberOn) end)
         setRemember(rememberOn)
+        -- push error below remember
+        errorLabel.Position = dim2(0, 0, 0, signY + 76)
     end
 
-    library:create("TextLabel", {
-        Parent = card, AnchorPoint = vec2(0.5, 1), Position = dim2(0.5, 0, 1, -18),
-        Size = dim2(1, -40, 0, 14), Text = cfg.copyright, TextColor3 = themes.preset.dimtext,
-        FontFace = fonts.font, TextSize = 11, BackgroundTransparency = 1, ZIndex = 83,
-    })
-
-    -- Signing in overlay (exact style from screenshot)
+    -- Signing in overlay
     local signing = library:create("Frame", {
         Parent = card, Name = "SigningLayer", Size = dim2(1, 0, 1, 0),
         BackgroundColor3 = themes.preset.background, BorderSizePixel = 0,
@@ -7117,24 +7274,22 @@ function library:Login(options)
     library:create("UICorner", { Parent = signing, CornerRadius = dim(0, 14) })
     local spin = library:create("ImageLabel", {
         Parent = signing, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.48, 0),
-        Size = dim2(0, 48, 0, 48), BackgroundTransparency = 1,
-        ImageColor3 = themes.preset.accent, ZIndex = 91,
-        Image = "rbxassetid://4965945816",
+        Size = dim2(0, 44, 0, 44), BackgroundTransparency = 1,
+        ImageColor3 = themes.preset.accent, ZIndex = 91, Image = "rbxassetid://4965945816",
     })
     library:apply_theme(spin, "accent", "ImageColor3")
     library:create("TextLabel", {
-        Parent = signing, AnchorPoint = vec2(0.5, 0), Position = dim2(0.5, 0, 0.48, 36),
-        Size = dim2(0, 160, 0, 20), Text = "Signing in...", TextColor3 = themes.preset.dimtext,
+        Parent = signing, AnchorPoint = vec2(0.5, 0), Position = dim2(0.5, 0, 0.48, 32),
+        Size = dim2(0, 140, 0, 18), Text = "Signing in...", TextColor3 = themes.preset.dimtext,
         FontFace = fonts.font, TextSize = 13, BackgroundTransparency = 1, ZIndex = 91,
     })
     library:connection(run.RenderStepped, function(dt)
-        if signing.Visible then spin.Rotation = (spin.Rotation + dt * 220) % 360 end
+        if signing.Visible then spin.Rotation = (spin.Rotation + dt * 240) % 360 end
     end)
 
     local submitting = false
     local function setError(msg)
         errorLabel.Text = msg or ""
-        library:tween(errorLabel, { TextTransparency = (msg and msg ~= "") and 0 or 1 }, Enum.EasingStyle.Quad, 0.15)
     end
 
     local function restoreWindow()
@@ -7147,12 +7302,8 @@ function library:Login(options)
                 end
             end
         end
-        pcall(function()
-            if card and card.Parent then card:Destroy() end
-        end)
-        if ownGui and gui then
-            pcall(function() gui:Destroy() end)
-        end
+        pcall(function() if card and card.Parent then card:Destroy() end end)
+        if ownGui and gui then pcall(function() gui:Destroy() end) end
     end
 
     local function submit()
@@ -7165,7 +7316,6 @@ function library:Login(options)
         if wantUser and (not creds.username or creds.username == "") then return setError("Enter a username.") end
         if wantPass and (not creds.password or creds.password == "") then return setError("Enter a password.") end
         if wantKey and (not creds.key or creds.key == "") then return setError("Enter a license key.") end
-
         setError(nil)
         submitting = true
         form.Visible = false
@@ -7185,11 +7335,8 @@ function library:Login(options)
                         pcall(delfile, cfg.saveFile)
                     end
                 end)
-                library:tween(card, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.2)
-                task.delay(0.2, function()
-                    restoreWindow()
-                    pcall(cfg.onSuccess, creds)
-                end)
+                restoreWindow()
+                pcall(cfg.onSuccess, creds)
             else
                 signing.Visible = false
                 form.Visible = true
@@ -7199,9 +7346,7 @@ function library:Login(options)
 
         if type(cfg.onSubmit) == "function" then
             task.spawn(function()
-                local ok, err = pcall(function()
-                    cfg.onSubmit(creds, finish)
-                end)
+                local ok, err = pcall(function() cfg.onSubmit(creds, finish) end)
                 if not ok then finish(false, tostring(err)) end
             end)
         else
