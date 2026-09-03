@@ -1,4 +1,4 @@
--- VERDIAN_BUILD 2026-09-03-e | tab return cfg + content fix
+-- VERDIAN_BUILD 2026-09-03-f | tab return cfg + content fix
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.4.4-verdian",
+    version = "1.4.5-verdian",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -803,8 +803,74 @@ function library:window(properties)
             TextColor3 = themes.preset.dimtext, TextXAlignment = Enum.TextXAlignment.Left,
             BorderSizePixel = 0, ZIndex = 9,
         })
-        items["search_btn"].MouseButton1Click:Connect(function()
-            library.OpenSearch()
+        -- Zolar-style inline search: type in the box, matching options flash/show
+        local searchBox = library:create("TextBox", {
+            Parent = items["search_btn"],
+            BackgroundTransparency = 1,
+            Position = dim2(0, 30, 0, 0),
+            Size = dim2(1, -36, 1, 0),
+            FontFace = fonts.font or Font.fromEnum(Enum.Font.GothamMedium),
+            Text = "",
+            PlaceholderText = "Search...",
+            PlaceholderColor3 = themes.preset.dimtext,
+            TextColor3 = themes.preset.text,
+            TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ClearTextOnFocus = false,
+            ZIndex = 17,
+        })
+        items["search_box"] = searchBox
+        local function applySearch(q)
+            q = tostring(q or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+            library.Searchables = library.Searchables or {}
+            for _, entry in ipairs(library.Searchables) do
+                local name = tostring(entry.name or ""):lower()
+                local flag = tostring(entry.flag or ""):lower()
+                local match = (q == "" or name:find(q, 1, true) or flag:find(q, 1, true))
+                local sec = entry.section
+                if sec and sec.items and sec.items["outline"] then
+                    local o = sec.items["outline"]
+                    if q == "" then
+                        o.BackgroundColor3 = themes.preset.element
+                    elseif match then
+                        o.BackgroundColor3 = themes.preset.hover or rgb(39, 35, 41)
+                    else
+                        o.BackgroundColor3 = themes.preset.element
+                    end
+                end
+            end
+            if q ~= "" then
+                for _, entry in ipairs(library.Searchables) do
+                    local name = tostring(entry.name or ""):lower()
+                    local flag = tostring(entry.flag or ""):lower()
+                    if name:find(q, 1, true) or flag:find(q, 1, true) then
+                        local tab = entry.tab
+                        if tab and tab.open_tab then
+                            pcall(tab.open_tab)
+                        end
+                        local sec = entry.section
+                        if sec and sec.items and sec.items["outline"] then
+                            local o = sec.items["outline"]
+                            local oldc = o.BackgroundColor3
+                            pcall(function()
+                                library:tween(o, { BackgroundColor3 = themes.preset.accent }, Enum.EasingStyle.Quad, 0.12)
+                                task.delay(0.45, function()
+                                    pcall(function()
+                                        library:tween(o, { BackgroundColor3 = themes.preset.hover or oldc }, Enum.EasingStyle.Quad, 0.35)
+                                    end)
+                                end)
+                            end)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+        searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+            applySearch(searchBox.Text)
+        end)
+        searchBox.FocusLost:Connect(function(enter)
+            if enter then applySearch(searchBox.Text) end
         end)
 
 
@@ -974,15 +1040,17 @@ function library:window(properties)
             local avatarBtn = library:create("ImageButton", {
                 Parent = items["main"],
                 AnchorPoint = vec2(1, 0.5),
-                Position = dim2(1, -12, 0, 28),
-                Size = dim2(0, 28, 0, 28),
-                BackgroundColor3 = themes.preset.element,
+                Position = dim2(1, -14, 0, 28),
+                Size = dim2(0, 32, 0, 32),
+                BackgroundColor3 = themes.preset.section or themes.preset.element,
                 AutoButtonColor = false,
                 BorderSizePixel = 0,
                 ZIndex = 16,
+                Image = "",
+                ScaleType = Enum.ScaleType.Crop,
             })
             library:create("UICorner", { Parent = avatarBtn, CornerRadius = dim(1, 0) })
-            library:create("UIStroke", { Parent = avatarBtn, Color = themes.preset.accent, Thickness = 1.2 })
+            library:create("UIStroke", { Parent = avatarBtn, Color = themes.preset.accent, Thickness = 1.5 })
             task.spawn(function()
                 local ok, content = pcall(function()
                     return players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
@@ -2467,54 +2535,6 @@ function library:section(properties)
         library._searchIndex = library._searchIndex or {}
         table.insert(library._searchIndex, { name = cfg.name, inst = items["outline"], tab = library._lastSidebarTab or library._buildingTab, page = library._buildingPage })
 
-        do
-            local dragging = false
-            items["button"].InputBegan:Connect(function(input)
-                if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-                dragging = true
-                library._sectionDragging = true
-                if not library._floatGui or not library._floatGui.Parent then
-                    library._floatGui = library:create("Frame", {
-                        Parent = library["items"],
-                        BackgroundTransparency = 1,
-                        Size = dim2(1, 0, 1, 0),
-                        ZIndex = 200,
-                    })
-                end
-                library._floatGui.Visible = true
-                -- input.Position (not UserInputService:GetMouseLocation()) - it's
-                -- reported in the same coordinate space as AbsolutePosition, so
-                -- everything downstream (grab offset, ghost placement, column
-                -- hit-testing) lines up with where things are actually drawn
-                -- instead of reading ~36px too high from the topbar GuiInset.
-                local loc = input.Position
-                local abs, sz = items["outline"].AbsolutePosition, items["outline"].AbsoluteSize
-                items["outline"]:SetAttribute("GrabX", loc.X - abs.X)
-                items["outline"]:SetAttribute("GrabY", loc.Y - abs.Y)
-                items["outline"].Parent = library._floatGui
-                items["outline"].Size = dim2(0, sz.X, 0, sz.Y)
-                items["outline"].Position = dim2(0, loc.X - (loc.X - abs.X), 0, loc.Y - (loc.Y - abs.Y))
-            end)
-            uis.InputChanged:Connect(function(input)
-                if not dragging then return end
-                if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
-                local loc = input.Position
-                local gx = items["outline"]:GetAttribute("GrabX") or 0
-                local gy = items["outline"]:GetAttribute("GrabY") or 0
-                items["outline"].Position = dim2(0, loc.X - gx, 0, loc.Y - gy)
-                pcall(function()
-                    library._updateGhost(library._bestColumn(loc.X, loc.Y), items["outline"].AbsoluteSize.Y)
-                end)
-            end)
-            uis.InputEnded:Connect(function(input)
-                if not dragging or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-                dragging = false
-                library._sectionDragging = false
-                local loc = input.Position
-                library.SnapSection(items["outline"], loc.X, loc.Y)
-            end)
-        end
-
         items["Icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.accent,
             BorderColor3 = rgb(0, 0, 0),
@@ -2531,19 +2551,19 @@ function library:section(properties)
         library:apply_theme(items["Icon"], "accent", "ImageColor3")
 
         items["section_title"] = library:create("TextLabel", {
-            FontFace = fonts.font,
+            FontFace = fonts.font or Font.fromEnum(Enum.Font.GothamMedium),
             TextColor3 = rgb(255, 255, 255),
             BorderColor3 = rgb(0, 0, 0),
-            Text = cfg.name,
+            Text = tostring(cfg.name or "Section"),
             Parent = items["button"],
             Name = "\0",
-            Size = dim2(0, 0, 1, 0),
-            Position = dim2(0, 40, 0, -1),
+            Size = dim2(1, -50, 1, 0),
+            Position = dim2(0, 40, 0, 0),
             BackgroundTransparency = 1,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Center,
             BorderSizePixel = 0,
-            AutomaticSize = Enum.AutomaticSize.X,
-            TextSize = 16,
+            TextSize = 15,
             BackgroundColor3 = rgb(255, 255, 255),
         })
 
@@ -2608,27 +2628,28 @@ function library:toggle(options)
         Parent = self.items["elements"],
         Name = "\0",
         BackgroundTransparency = 1,
-        Size = dim2(1, 0, 0, 0),
+        Size = dim2(1, 0, 0, 22),
         BorderSizePixel = 0,
         AutomaticSize = Enum.AutomaticSize.Y,
         TextSize = 14,
         BackgroundColor3 = rgb(255, 255, 255),
+        Visible = true,
+        ZIndex = 7,
     })
 
     items["name"] = library:create("TextLabel", {
-        FontFace = fonts.font,
-        TextColor3 = themes.preset.text,
+        FontFace = fonts.font or Font.fromEnum(Enum.Font.GothamMedium),
+        TextColor3 = rgb(255, 255, 255),
         BorderColor3 = rgb(0, 0, 0),
-        Text = cfg.name,
+        Text = tostring(cfg.name or "Toggle"),
         Parent = items["toggle"],
         Name = "\0",
-        Size = dim2(1, -46, 0, 0),
+        Size = dim2(1, -50, 0, 18),
         BackgroundTransparency = 1,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextWrapped = false,
         BorderSizePixel = 0,
-        AutomaticSize = Enum.AutomaticSize.Y,
-        TextSize = 16,
+        TextSize = 14,
         BackgroundColor3 = rgb(255, 255, 255),
     })
 
@@ -7133,46 +7154,51 @@ end
 function library:Snow(enabled)
     if enabled == false then
         if library._snowConn then pcall(function() library._snowConn:Disconnect() end) library._snowConn = nil end
-        if library._snowGui then pcall(function() library._snowGui:Destroy() end) library._snowGui = nil end
+        if library._snowLayer then pcall(function() library._snowLayer:Destroy() end) library._snowLayer = nil end
         library._snowEnabled = false
         return
     end
     if library._snowEnabled then return end
+    local host = library._menuMain
+    if not host then return end
     library._snowEnabled = true
-    local sg = library:create("ScreenGui", {
-        Parent = get_hui(),
-        Name = "\0",
-        IgnoreGuiInset = true,
-        DisplayOrder = 50,
-        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+    local layer = library:create("Frame", {
+        Parent = host,
+        Name = "SnowLayer",
+        Size = dim2(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        ZIndex = 25,
+        BorderSizePixel = 0,
     })
-    library._snowGui = sg
+    library._snowLayer = layer
     local flakes = {}
     local rnd = math.random
-    for i = 1, 40 do
+    for i = 1, 28 do
         local f = library:create("Frame", {
-            Parent = sg,
+            Parent = layer,
             Size = dim2(0, rnd(2, 4), 0, rnd(2, 4)),
-            Position = dim2(0, rnd(0, 1920), 0, rnd(-50, 800)),
+            Position = dim2(rnd(0, 100) / 100, 0, 0, rnd(-20, 200)),
             BackgroundColor3 = rgb(255, 255, 255),
-            BackgroundTransparency = rnd(20, 55) / 100,
+            BackgroundTransparency = rnd(25, 60) / 100,
             BorderSizePixel = 0,
-            ZIndex = 1,
+            ZIndex = 25,
         })
         library:create("UICorner", { Parent = f, CornerRadius = dim(1, 0) })
-        flakes[i] = { f = f, speed = rnd(30, 90) / 100, x = f.Position.X.Offset, y = f.Position.Y.Offset, drift = rnd(-20, 20) / 100 }
+        flakes[i] = { f = f, speed = rnd(25, 70) / 100, x = rnd(0, 1000) / 1000, y = rnd(-50, 400), drift = rnd(-15, 15) / 100 }
     end
     library._snowConn = run.RenderStepped:Connect(function(dt)
-        local vh = camera.ViewportSize.Y
-        local vw = camera.ViewportSize.X
+        if not layer.Parent then return end
+        local h = math.max(layer.AbsoluteSize.Y, 1)
         for _, s in ipairs(flakes) do
-            s.y = s.y + s.speed * 60 * dt
-            s.x = s.x + s.drift * 30 * dt
-            if s.y > vh + 10 then
-                s.y = rnd(-40, -5)
-                s.x = rnd(0, math.max(1, vw))
+            s.y = s.y + s.speed * 55 * dt
+            s.x = s.x + s.drift * 0.02 * dt
+            if s.y > h + 8 then
+                s.y = rnd(-30, -5)
+                s.x = rnd(0, 1000) / 1000
             end
-            s.f.Position = dim2(0, s.x, 0, s.y)
+            if s.x < 0 then s.x = 1 elseif s.x > 1 then s.x = 0 end
+            s.f.Position = dim2(s.x, 0, 0, s.y)
         end
     end)
 end
