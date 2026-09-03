@@ -734,7 +734,8 @@ function library:window(properties)
             BackgroundTransparency = 1,
             Name = "\0",
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 196, 1, -25),
+            Size = dim2(0, 0, 1, -25),
+            Visible = false,
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
         })
@@ -749,20 +750,16 @@ function library:window(properties)
             BackgroundColor3 = themes.preset.line,
         })
 
-        items["button_holder"] = library:create("ScrollingFrame", {
-            Parent = items["side_frame"],
+        items["button_holder"] = library:create("Frame", {
+            Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 0, 0, 60),
-            BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 1, -108),
-            AutomaticCanvasSize = Enum.AutomaticSize.Y,
-            CanvasSize = dim2(0, 0, 0, 0),
-            ScrollBarThickness = 3,
-            ScrollBarImageColor3 = rgb(60, 60, 66),
-            Active = true,
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0, 28),
+            Size = dim2(0, 0, 0, 40),
+            AutomaticSize = Enum.AutomaticSize.X,
             BorderSizePixel = 0,
-            BackgroundColor3 = rgb(255, 255, 255),
+            ZIndex = 12,
         })
         cfg.button_holder = items["button_holder"]
 
@@ -844,9 +841,9 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 0),
+            Position = dim2(0, 0, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -196, 0, 56),
+            Size = dim2(1, 0, 0, 56),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1400,9 +1397,9 @@ function library:tab(properties)
             Name = "\0",
             Visible = false,
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 56),
+            Position = dim2(0, 12, 0, 60),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -208, 1, -64),
+            Size = dim2(1, -24, 1, -72),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -1421,12 +1418,19 @@ function library:tab(properties)
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             Name = "\0",
-            Size = dim2(1, 0, 0, 35),
+            Size = dim2(0, 36, 0, 36),
+            AutomaticSize = Enum.AutomaticSize.X,
             BorderSizePixel = 0,
-            TextSize = 16,
+            TextSize = 13,
             BackgroundColor3 = themes.preset.accent,
+            ZIndex = 13,
         })
         library:apply_theme(items["button"], "accent", "BackgroundColor3")
+        library:create("UIPadding", {
+            Parent = items["button"],
+            PaddingLeft = dim(0, 9),
+            PaddingRight = dim(0, 9),
+        })
 
         items["icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.dimicon,
@@ -1434,9 +1438,9 @@ function library:tab(properties)
             Parent = items["button"],
             AnchorPoint = vec2(0, 0.5),
             BackgroundTransparency = 1,
-            Position = dim2(0, 10, 0.5, 0),
+            Position = dim2(0, 0, 0.5, 0),
             Name = "\0",
-            Size = dim2(0, 22, 0, 22),
+            Size = dim2(0, 18, 0, 18),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1451,13 +1455,13 @@ function library:tab(properties)
             Parent = items["button"],
             Name = "\0",
             Size = dim2(0, 0, 1, 0),
-            Position = dim2(0, 40, 0, 0),
+            Position = dim2(0, 24, 0, 0),
             BackgroundTransparency = 1,
             TextTransparency = 1,
             TextXAlignment = Enum.TextXAlignment.Left,
             BorderSizePixel = 0,
             AutomaticSize = Enum.AutomaticSize.X,
-            TextSize = 16,
+            TextSize = 13,
             BackgroundColor3 = rgb(255, 255, 255),
         })
 
