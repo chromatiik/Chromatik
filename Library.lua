@@ -1,4 +1,4 @@
--- EMBLEM_BUILD 2026-09-03-h | Chromatik base
+-- EMBLEM_BUILD 2026-09-03-i | Chromatik base
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.5.1-emblem",
+    version = "1.5.2-emblem",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -795,15 +795,16 @@ function library:window(properties)
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
         local sic = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
-            Size = dim2(0, 14, 0, 14), Position = dim2(0, 8, 0.5, -7),
+            Size = dim2(0, 14, 0, 14), Position = dim2(0, 10, 0.5, -7),
             ImageColor3 = themes.preset.dimtext, BorderSizePixel = 0,
             Image = "rbxassetid://6031094678",
-            ZIndex = 9,
+            ZIndex = 22,
         })
         pcall(function() if ApplyIcon then ApplyIcon(sic, "search") end end)
         local searchBox = library:create("TextBox", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
-            Position = dim2(0, 28, 0, 0), Size = dim2(1, -34, 1, 0),
+            Position = dim2(0, 30, 0, 0), Size = dim2(1, -36, 1, 0),
+            ZIndex = 22,
             FontFace = fonts.font, Text = "", PlaceholderText = "Search...",
             PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
             TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
@@ -1163,22 +1164,25 @@ function library:window(properties)
             local dbtn = library:create("TextButton", {
                 Parent = items["main"],
                 AnchorPoint = vec2(1, 0),
-                Position = dim2(1, -14, 0, 12),
-                Size = dim2(0, 32, 0, 32),
+                Position = dim2(1, -92, 0, 12),
+                Size = dim2(0, 28, 0, 28),
                 BackgroundColor3 = themes.preset.element,
-                Text = "", AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 20,
+                Text = "", AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 25,
             })
-            library:create("UICorner", { Parent = dbtn, CornerRadius = dim(0, 8) })
+            library:create("UICorner", { Parent = dbtn, CornerRadius = dim(0, 7) })
             local dic = library:create("ImageLabel", {
                 Parent = dbtn, BackgroundTransparency = 1,
                 AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-                Size = dim2(0, 16, 0, 16), Image = "rbxassetid://120249220493681",
+                Size = dim2(0, 14, 0, 14), Image = "rbxassetid://120249220493681",
+                ZIndex = 26,
                 ImageColor3 = themes.preset.dimicon, BorderSizePixel = 0, ZIndex = 21,
             })
             dbtn.MouseButton1Click:Connect(function()
                 pcall(function() if setclipboard then setclipboard(tostring(discordUrl)) end end)
                 pcall(function()
-                    if library.notification then library:notification("Discord link copied", 2) end
+                    if library.notification then library:notification({ text = "Discord link copied", time = 2 })
+                    elseif library.Notify then library:Notify("Discord link copied", 2)
+                    end
                 end)
             end)
             items["discord_btn"] = dbtn
@@ -1202,6 +1206,46 @@ function library:window(properties)
             end)
             dbtn.Position = dim2(1, -92, 0, 12)
             items["avatar_btn"] = avatarBtn
+            local drop
+            avatarBtn.MouseButton1Click:Connect(function()
+                if drop and drop.Parent then
+                    drop:Destroy()
+                    drop = nil
+                    return
+                end
+                drop = library:create("Frame", {
+                    Parent = items["main"],
+                    AnchorPoint = vec2(1, 0),
+                    Position = dim2(1, -12, 0, 48),
+                    Size = dim2(0, 168, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundColor3 = themes.preset.section,
+                    BorderSizePixel = 0,
+                    ZIndex = 40,
+                })
+                library:create("UICorner", { Parent = drop, CornerRadius = dim(0, 8) })
+                library:create("UIStroke", { Parent = drop, Color = rgb(30, 30, 36), Thickness = 1 })
+                library:create("UIPadding", {
+                    Parent = drop, PaddingTop = dim(0, 8), PaddingBottom = dim(0, 8),
+                    PaddingLeft = dim(0, 8), PaddingRight = dim(0, 8),
+                })
+                library:create("UIListLayout", { Parent = drop, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+                local function opt(text, fn)
+                    local b = library:create("TextButton", {
+                        Parent = drop, Size = dim2(1, 0, 0, 28), BackgroundColor3 = themes.preset.element,
+                        Text = text, FontFace = fonts.font, TextSize = 12, TextColor3 = themes.preset.text,
+                        AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 41,
+                    })
+                    library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
+                    b.MouseButton1Click:Connect(function()
+                        pcall(fn)
+                        if drop then drop:Destroy() drop = nil end
+                    end)
+                end
+                opt("Copy username", function() if setclipboard then setclipboard(lp.Name) end end)
+                opt("Copy user id", function() if setclipboard then setclipboard(tostring(lp.UserId)) end end)
+                opt("Unload menu", function() library:unload_menu() end)
+            end)
         end
     library:resizify(items["main"])
 
@@ -1327,14 +1371,35 @@ function library:window(properties)
         if bool == nil then
             bool = not library["items"].Enabled
         end
-        library["items"].Enabled = bool and true or false
-        pcall(function()
-            if items["main"] then items["main"].Visible = library["items"].Enabled end
-        end)
+        bool = bool and true or false
+        library["items"].Enabled = true
         pcall(function()
             shared = shared or {}
-            shared._hostMenuOpen = library["items"].Enabled
+            shared._hostMenuOpen = bool
         end)
+        local main = items["main"]
+        if not main then
+            library["items"].Enabled = bool
+            return
+        end
+        main.Visible = true
+        if bool then
+            main.BackgroundTransparency = 1
+            library:tween(main, { BackgroundTransparency = 0 }, Enum.EasingStyle.Quad, 0.12)
+            for _, d in ipairs(main:GetDescendants()) do
+                if d:IsA("GuiObject") and d:GetAttribute("_fadeSkip") then continue end
+            end
+        else
+            library:tween(main, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.12)
+            task.delay(0.13, function()
+                if library["items"] and not shared._hostMenuOpen then
+                    library["items"].Enabled = false
+                    if main then main.Visible = false main.BackgroundTransparency = 0 end
+                end
+            end)
+        end
+        library["items"].Enabled = bool or true -- keep SG enabled during fade-out
+        if bool then library["items"].Enabled = true end
     end
 
     library._menuMain = items["main"]
@@ -1425,9 +1490,9 @@ function library:tab(properties)
             Name = "\0",
             Visible = false,
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 56),
+            Position = dim2(0, 0, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -208, 1, -64),
+            Size = dim2(1, 0, 1, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -1446,23 +1511,25 @@ function library:tab(properties)
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             Name = "\0",
-            Size = dim2(1, 0, 0, 35),
+            Size = dim2(1, -10, 0, 44),
             BorderSizePixel = 0,
             TextSize = 16,
-            BackgroundColor3 = rgb(29, 29, 29),
+            BackgroundColor3 = themes.preset.accent,
         })
+        library:create("UICorner", { Parent = items["button"], CornerRadius = dim(0, 10) })
 
         items["icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.dimicon,
             BorderColor3 = rgb(0, 0, 0),
             Parent = items["button"],
-            AnchorPoint = vec2(0, 0.5),
+            AnchorPoint = vec2(0.5, 0.5),
             BackgroundTransparency = 1,
-            Position = dim2(0, 10, 0.5, 0),
+            Position = dim2(0.5, 0, 0.5, 0),
             Name = "\0",
-            Size = dim2(0, 22, 0, 22),
+            Size = dim2(0, 20, 0, 20),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
+            ZIndex = 5,
         })
         ApplyIcon(items["icon"], cfg.icon)
 
@@ -1471,12 +1538,14 @@ function library:tab(properties)
             FontFace = fonts.font,
             TextColor3 = themes.preset.dimtext,
             BorderColor3 = rgb(0, 0, 0),
-            Text = cfg.name,
+            Text = "",
             Parent = items["button"],
             Name = "\0",
-            Size = dim2(0, 0, 1, 0),
-            Position = dim2(0, 40, 0, 0),
+            Size = dim2(0, 0, 0, 0),
+            Position = dim2(0, 0, 0, 0),
             BackgroundTransparency = 1,
+            Visible = false,
+            TextTransparency = 1,
             TextXAlignment = Enum.TextXAlignment.Left,
             BorderSizePixel = 0,
             AutomaticSize = Enum.AutomaticSize.X,
@@ -1725,17 +1794,21 @@ function library:tab(properties)
             selected_tab[5].Parent = library["cache"]
         end
 
-        library:tween(items["button"], { BackgroundTransparency = 0 })
+        library:tween(items["button"], { BackgroundTransparency = 0.82, BackgroundColor3 = themes.preset.accent })
         library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
-        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255) })
+        pcall(function() items["name"].Visible = false; items["name"].TextTransparency = 1 end)
         library._active_tab_icon = items["icon"]
-        library:tween(items["tab_holder"], { Size = dim2(1, -196, 1, -81) }, Enum.EasingStyle.Quad, 0.4)
+        library:tween(items["tab_holder"], { Size = dim2(1, 0, 1, 0) }, Enum.EasingStyle.Quad, 0.25)
 
         items["tab_holder"].Visible = true
-        items["tab_holder"].Parent = self.items["main"]
+        items["tab_holder"].Position = dim2(0, 0, 0, 0)
+        items["tab_holder"].Size = dim2(1, 0, 1, 0)
+        local fade = self.items["global_fade"]
+        items["tab_holder"].Parent = (fade and fade.Parent) and fade or self.items["main"]
         items["tab_holder"].ScrollingEnabled = true
         task.defer(function() pcall(library.RefreshPageScroll) end)
-        items["multi_section_button_holder"].Visible = true
+        -- only show multi strip when multiple sub-pages
+        items["multi_section_button_holder"].Visible = (#cfg.tabs > 1)
         items["multi_section_button_holder"].Parent = self.items["multi_holder"]
 
         self.selected_tab = {
@@ -2235,6 +2308,18 @@ function library.OpenSearch()
 end
 
 function library:section(properties)
+    -- Auto-create left/right columns if section is called on a tab/page without :column()
+    if not (self and self.items and self.items["column"]) then
+        local host = self
+        if not host._emblem_auto_cols then
+            local L = library.column(host, {})
+            local R = library.column(host, {})
+            host._emblem_auto_cols = { L = L, R = R }
+        end
+        local side = string.lower(tostring((properties and (properties.side or properties.Side)) or "left"))
+        self = (side == "right") and host._emblem_auto_cols.R or host._emblem_auto_cols.L
+    end
+
     local cfg = {
         name = properties.name or properties.Name or "section",
         side = properties.side or properties.Side or "left",
@@ -7096,11 +7181,11 @@ function library:Login(options)
             ClipsDescendants = true, ZIndex = 80,
         })
         library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
-        local glow = library:create("UIStroke", {
-            Parent = card, Color = themes.preset.accent, Thickness = 1.5,
-            Transparency = 0.35, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        -- same outline style as main menu (subtle dark stroke, not a thick glow border)
+        library:create("UIStroke", {
+            Parent = card, Color = rgb(30, 30, 36), Thickness = 1,
+            Transparency = 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
-        library:apply_theme(glow, "accent", "Color")
     else
         return
     end
