@@ -1,4 +1,4 @@
--- VERDIAN_BUILD 2026-09-03-c | tab return cfg + content fix
+-- VERDIAN_BUILD 2026-09-03-d | tab return cfg + content fix
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.4.2-verdian",
+    version = "1.4.3-verdian",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -781,8 +781,8 @@ function library:window(properties)
             TextColor3 = themes.preset.dimtext,
             AutoButtonColor = false,
             BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 48, 0, 12),
-            Size = dim2(0, 150, 0, 32),
+            Position = dim2(0, 52, 0, 12),
+            Size = dim2(0, 160, 0, 32),
             BorderSizePixel = 0,
             ZIndex = 15,
         })
@@ -850,11 +850,12 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 0, 0, 0),
+            Position = dim2(0, 88, 0, 52),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 0, 56),
+            Size = dim2(1, -100, 0, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
+            Visible = false,
         })
         cfg.multi_holder = items["multi_holder"]
 
@@ -1283,7 +1284,7 @@ function library:tab(properties)
     local cfg = {
         name = properties.name or properties.Name or "visuals",
         icon = properties.icon or properties.Icon or "layers",
-        tabs = properties.tabs or properties.Tabs or { "Main", "Misc.", "Settings" },
+        tabs = properties.tabs or properties.Tabs or {},
         pages = {},
         current_multi = nil,
         items = {},
@@ -1612,8 +1613,8 @@ function library:tab(properties)
 
         library:tween(items["button"], { BackgroundTransparency = 0 })
         library:tween(items["icon"], { ImageColor3 = rgb(255, 255, 255) })
-        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 0 }, Enum.EasingStyle.Quad, 0.22)
-        items["name"].Visible = true
+        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 1 }, Enum.EasingStyle.Quad, 0.22)
+        items["name"].Visible = false
         library:tween(items["tab_holder"], { Size = dim2(1, 0, 1, 0) }, Enum.EasingStyle.Quad, 0.35)
 
         local fade = self.items["global_fade"]
@@ -1646,9 +1647,12 @@ function library:tab(properties)
         pcall(function()
             local msh = items["multi_section_button_holder"]
             local mh = self.items and self.items["multi_holder"]
-            if msh and mh then
+            if msh and mh and cfg.tabs and #cfg.tabs > 0 then
                 msh.Visible = true
                 msh.Parent = mh
+            elseif msh then
+                msh.Visible = false
+                msh.Parent = library.cache
             end
         end)
 
@@ -2362,7 +2366,10 @@ function library:section(properties)
             Size = dim2(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             BorderSizePixel = 0,
+            BackgroundTransparency = 0,
             BackgroundColor3 = themes.preset.element,
+            ZIndex = 6,
+            Visible = true,
         })
         pcall(function() items["outline"]:SetAttribute("ScaleY", cfg.size) end)
         task.defer(function()
@@ -2579,6 +2586,18 @@ function library:toggle(options)
     end)
 
     local items = cfg.items
+    if not self.items then self.items = {} end
+    if not self.items["elements"] or not self.items["elements"].Parent then
+        local host = (self.items and self.items["outline"]) or (self.items and self.items["tab_holder"]) or library._menuMain
+        self.items["elements"] = library:create("Frame", {
+            Parent = host,
+            BackgroundTransparency = 1,
+            Size = dim2(1, -16, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BorderSizePixel = 0,
+        })
+        library:create("UIListLayout", { Parent = self.items["elements"], Padding = dim(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+    end
     items["toggle"] = library:create("TextButton", {
         FontFace = fonts.small,
         TextColor3 = rgb(0, 0, 0),
@@ -7108,6 +7127,54 @@ end
 
 
 
+
+function library:Snow(enabled)
+    if enabled == false then
+        if library._snowConn then pcall(function() library._snowConn:Disconnect() end) library._snowConn = nil end
+        if library._snowGui then pcall(function() library._snowGui:Destroy() end) library._snowGui = nil end
+        library._snowEnabled = false
+        return
+    end
+    if library._snowEnabled then return end
+    library._snowEnabled = true
+    local sg = library:create("ScreenGui", {
+        Parent = get_hui(),
+        Name = "\0",
+        IgnoreGuiInset = true,
+        DisplayOrder = 50,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+    })
+    library._snowGui = sg
+    local flakes = {}
+    local rnd = math.random
+    for i = 1, 40 do
+        local f = library:create("Frame", {
+            Parent = sg,
+            Size = dim2(0, rnd(2, 4), 0, rnd(2, 4)),
+            Position = dim2(0, rnd(0, 1920), 0, rnd(-50, 800)),
+            BackgroundColor3 = rgb(255, 255, 255),
+            BackgroundTransparency = rnd(20, 55) / 100,
+            BorderSizePixel = 0,
+            ZIndex = 1,
+        })
+        library:create("UICorner", { Parent = f, CornerRadius = dim(1, 0) })
+        flakes[i] = { f = f, speed = rnd(30, 90) / 100, x = f.Position.X.Offset, y = f.Position.Y.Offset, drift = rnd(-20, 20) / 100 }
+    end
+    library._snowConn = run.RenderStepped:Connect(function(dt)
+        local vh = camera.ViewportSize.Y
+        local vw = camera.ViewportSize.X
+        for _, s in ipairs(flakes) do
+            s.y = s.y + s.speed * 60 * dt
+            s.x = s.x + s.drift * 30 * dt
+            if s.y > vh + 10 then
+                s.y = rnd(-40, -5)
+                s.x = rnd(0, math.max(1, vw))
+            end
+            s.f.Position = dim2(0, s.x, 0, s.y)
+        end
+    end)
+end
+
 function library:BindChatCommands()
     if library._chatCmdsBound then return end
     library._chatCmdsBound = true
@@ -7232,29 +7299,12 @@ function library:Login(options)
         library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
     end
 
-    -- soft centered card
-    local formShell = library:create("Frame", {
+    -- centered form directly on card (no inner shell)
+    local form = library:create("Frame", {
         Parent = card,
         AnchorPoint = vec2(0.5, 0.5),
         Position = dim2(0.5, 0, 0.5, 0),
-        Size = dim2(0, 340, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = themes.preset.section or themes.preset.element,
-        BorderSizePixel = 0,
-        ZIndex = 81,
-    })
-    library:create("UICorner", { Parent = formShell, CornerRadius = dim(0, 12) })
-    library:create("UIStroke", { Parent = formShell, Color = themes.preset.line, Thickness = 1 })
-    library:create("UIPadding", {
-        Parent = formShell,
-        PaddingTop = dim(0, 22),
-        PaddingBottom = dim(0, 18),
-        PaddingLeft = dim(0, 20),
-        PaddingRight = dim(0, 20),
-    })
-    local form = library:create("Frame", {
-        Parent = formShell,
-        Size = dim2(1, 0, 0, 0),
+        Size = dim2(0, 300, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         ZIndex = 82,
@@ -7432,7 +7482,18 @@ function library:Login(options)
             pcall(function()
                 if host and cfg.window and cfg.window.items then
                     local fade = cfg.window.items["global_fade"]
-                    if fade then fade.Visible = true; fade.BackgroundTransparency = 1 end
+                    if fade then
+                        fade.Visible = true
+                        fade.BackgroundTransparency = 1
+                        fade.ClipsDescendants = false
+                        for _, ch in ipairs(fade:GetChildren()) do
+                            if ch:IsA("GuiObject") then
+                                ch.Visible = true
+                            end
+                        end
+                    end
+                    local side = cfg.window.items["side_frame"]
+                    if side then side.Visible = true end
                 end
             end)
         end
