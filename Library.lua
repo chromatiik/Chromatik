@@ -742,10 +742,12 @@ function library:window(properties)
             BackgroundTransparency = 1,
             Name = "\0",
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 0, 1, -25),
-            Visible = false,
+            Size = dim2(0, 72, 1, -12),
+            Position = dim2(0, 8, 0, 56),
+            Visible = true,
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
+            ZIndex = 10,
         })
 
         library:create("Frame", {
@@ -759,13 +761,11 @@ function library:window(properties)
         })
 
         items["button_holder"] = library:create("Frame", {
-            Parent = items["main"],
+            Parent = items["side_frame"],
             Name = "\0",
             BackgroundTransparency = 1,
-            AnchorPoint = vec2(0.5, 0.5),
-            Position = dim2(0.5, 0, 0, 28),
-            Size = dim2(0, 0, 0, 38),
-            AutomaticSize = Enum.AutomaticSize.X,
+            Position = dim2(0, 0, 0, 0),
+            Size = dim2(1, 0, 1, 0),
             BorderSizePixel = 0,
             ZIndex = 12,
         })
@@ -809,10 +809,10 @@ function library:window(properties)
 
         library:create("UIListLayout", {
             Parent = items["button_holder"],
-            FillDirection = Enum.FillDirection.Horizontal,
-            Padding = dim(0, 6),
+            FillDirection = Enum.FillDirection.Vertical,
+            Padding = dim(0, 8),
             SortOrder = Enum.SortOrder.LayoutOrder,
-            VerticalAlignment = Enum.VerticalAlignment.Center,
+            VerticalAlignment = Enum.VerticalAlignment.Top,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
         })
 
@@ -994,9 +994,9 @@ items["global_fade"] = library:create("Frame", {
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 12, 0, 64),
+            Position = dim2(0, 88, 0, 56),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -24, 1, -76),
+            Size = dim2(1, -100, 1, -68),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 2,
@@ -1297,9 +1297,9 @@ function library:tab(properties)
             Name = "\0",
             Visible = false,
             BackgroundTransparency = 1,
-            Position = dim2(0, 12, 0, 64),
+            Position = dim2(0, 0, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -24, 1, -76),
+            Size = dim2(1, 0, 1, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -1331,7 +1331,7 @@ function library:tab(properties)
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             Name = "\0",
-            Size = dim2(0, 36, 0, 36),
+            Size = dim2(0, 48, 0, 48),
             AutomaticSize = Enum.AutomaticSize.X,
             BorderSizePixel = 0,
             TextSize = 13,
@@ -1593,7 +1593,7 @@ function library:tab(properties)
             if selected_tab[4] ~= items["tab_holder"] then
                 self.items["global_fade"].BackgroundTransparency = 0
                 library:tween(self.items["global_fade"], { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.4)
-                selected_tab[4].Size = dim2(1, -24, 1, -76)
+                selected_tab[4].Size = dim2(1, 0, 1, 0)
             end
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
@@ -1609,11 +1609,21 @@ function library:tab(properties)
         library:tween(items["icon"], { ImageColor3 = rgb(255, 255, 255) })
         library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 0 }, Enum.EasingStyle.Quad, 0.22)
         items["name"].Visible = true
-        library:tween(items["tab_holder"], { Size = dim2(1, -24, 1, -76) }, Enum.EasingStyle.Quad, 0.35)
+        library:tween(items["tab_holder"], { Size = dim2(1, 0, 1, 0) }, Enum.EasingStyle.Quad, 0.35)
 
+        local fade = self.items["global_fade"]
+        items["tab_holder"].Size = dim2(1, 0, 1, 0)
+        items["tab_holder"].Position = dim2(0, 0, 0, 0)
         items["tab_holder"].Visible = true
-        items["tab_holder"].Parent = self.items["main"]
+        items["tab_holder"].Parent = fade or self.items["main"]
         items["tab_holder"].ScrollingEnabled = true
+        items["tab_holder"].BackgroundTransparency = 1
+        items["tab_holder"].ZIndex = 5
+        if fade then
+            fade.Visible = true
+            fade.BackgroundTransparency = 1
+            fade.ZIndex = 2
+        end
         task.defer(function() pcall(library.RefreshPageScroll) end)
         items["multi_section_button_holder"].Visible = true
         items["multi_section_button_holder"].Parent = self.items["multi_holder"]
@@ -1643,7 +1653,25 @@ function library:tab(properties)
         cfg.open_tab(true)
     end
 
-    return unpack(cfg.pages)
+    -- return tab object so Home:section / Home:column / Home.open_tab work
+    setmetatable(cfg, {
+        __index = function(_, k)
+            local v = rawget(library, k)
+            if type(v) == "function" then
+                return function(tabSelf, ...)
+                    return v(tabSelf, ...)
+                end
+            end
+            return v
+        end,
+    })
+    cfg.section = function(tabSelf, props)
+        return library.section(tabSelf, props)
+    end
+    cfg.column = function(tabSelf, props)
+        return library.column(tabSelf, props)
+    end
+    return cfg
 end
 
 function library:seperator(properties)
@@ -1986,11 +2014,13 @@ function library.OpenSearch()
         Parent = gui,
         Size = dim2(1, 0, 1, 0),
         BackgroundColor3 = rgb(0, 0, 0),
-        BackgroundTransparency = 0.5,
+        BackgroundTransparency = 0.55,
         Text = "",
         AutoButtonColor = false,
         ZIndex = 500,
+        BorderSizePixel = 0,
     })
+    library:create("UICorner", { Parent = dimmer, CornerRadius = dim(0, 14) })
 
     local panel = library:create("Frame", {
         Parent = gui,
@@ -7041,6 +7071,50 @@ function library:PlayerCard(params)
 end
 
 
+
+function library:BindChatCommands()
+    if library._chatCmdsBound then return end
+    library._chatCmdsBound = true
+    local Players = game:GetService("Players")
+    local function handle(msg)
+        if type(msg) ~= "string" then return end
+        local m = string.lower(msg):gsub("^%s+", ""):gsub("%s+$", "")
+        if m == "!rejoin" or m == "!rj" or m == "/rejoin" or m == "/rj" then
+            pcall(function()
+                game:GetService("TeleportService"):TeleportToPlaceInstance(
+                    game.PlaceId,
+                    game.JobId,
+                    Players.LocalPlayer
+                )
+            end)
+        end
+    end
+    pcall(function()
+        local lp = Players.LocalPlayer
+        if lp then
+            library:connection(lp.Chatted, handle)
+        end
+    end)
+    pcall(function()
+        local tcs = game:GetService("TextChatService")
+        if tcs then
+            library:connection(tcs.MessageReceived, function(message)
+                local text = message and message.Text
+                local src = message and message.TextSource
+                local lp = Players.LocalPlayer
+                if text and src and lp and src.UserId == lp.UserId then
+                    handle(text)
+                end
+            end)
+        end
+    end)
+end
+
+-- auto-bind once library loads
+task.defer(function()
+    pcall(function() library:BindChatCommands() end)
+end)
+
 function library:Login(options)
     options = options or {}
     local fields = options.fields or options.Fields or { "key" }
@@ -7122,12 +7196,29 @@ function library:Login(options)
         library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
     end
 
-    -- centered form (no background orbs / no copyright)
-    local form = library:create("Frame", {
+    -- soft centered card
+    local formShell = library:create("Frame", {
         Parent = card,
         AnchorPoint = vec2(0.5, 0.5),
         Position = dim2(0.5, 0, 0.5, 0),
-        Size = dim2(0, 300, 0, 0),
+        Size = dim2(0, 340, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = themes.preset.section or themes.preset.element,
+        BorderSizePixel = 0,
+        ZIndex = 81,
+    })
+    library:create("UICorner", { Parent = formShell, CornerRadius = dim(0, 12) })
+    library:create("UIStroke", { Parent = formShell, Color = themes.preset.line, Thickness = 1 })
+    library:create("UIPadding", {
+        Parent = formShell,
+        PaddingTop = dim(0, 22),
+        PaddingBottom = dim(0, 18),
+        PaddingLeft = dim(0, 20),
+        PaddingRight = dim(0, 20),
+    })
+    local form = library:create("Frame", {
+        Parent = formShell,
+        Size = dim2(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         ZIndex = 82,
@@ -7301,6 +7392,13 @@ function library:Login(options)
                     child.Visible = prev and true or false
                 end
             end
+            -- ensure content host is visible
+            pcall(function()
+                if host and cfg.window and cfg.window.items then
+                    local fade = cfg.window.items["global_fade"]
+                    if fade then fade.Visible = true; fade.BackgroundTransparency = 1 end
+                end
+            end)
         end
         pcall(function() if card and card.Parent then card:Destroy() end end)
         if ownGui and gui then pcall(function() gui:Destroy() end) end
