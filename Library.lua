@@ -70,8 +70,8 @@ local library = {
     version = "1.4.1",
     theme_dirty = false,
     silent = false,
-    MenuKeybind = Enum.KeyCode.RightControl,
-    MenuKeyName = "RCtrl",
+    MenuKeybind = Enum.KeyCode.LeftAlt,
+    MenuKeyName = "LAlt",
     keybind_registry = {},
     KeybindListInstance = nil,
     EspPreviewInstance = nil,
@@ -6916,7 +6916,7 @@ end
 
 function library:Login(options)
     options = options or {}
-    local fields = options.fields or options.Fields or { "username", "password", "key" }
+    local fields = options.fields or options.Fields or { "key" }
     local cfg = {
         title = options.title or options.Title or "Verdian Login",
         fields = fields,
@@ -7038,7 +7038,6 @@ function library:Login(options)
             BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 53,
         })
         library:create("UICorner", { Parent = wrap, CornerRadius = dim(0, 8) })
-        -- no stroke / no focus border
         local icon = library:create("ImageLabel", {
             Parent = wrap, AnchorPoint = vec2(0, 0.5), Position = dim2(0, 12, 0.5, 0),
             Size = dim2(0, 15, 0, 15), BackgroundTransparency = 1,
@@ -7051,37 +7050,39 @@ function library:Login(options)
             PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
             FontFace = fonts.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
             ClearTextOnFocus = false, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 54,
+            MaxVisibleGraphemes = -1,
         })
-        local real = { value = "" }
+        local state = { value = "" }
         if isPass then
             local suppress = false
             box:GetPropertyChangedSignal("Text"):Connect(function()
                 if suppress then return end
-                local shown = box.Text
-                local bullets = 0
-                for _ in shown:gmatch("•") do bullets = bullets + 1 end
-                if #shown < #real.value then
-                    real.value = real.value:sub(1, #shown)
+                local shown = box.Text or ""
+                if #shown > 200 then
+                    suppress = true
+                    box.Text = string.rep("•", math.min(#state.value, 64))
+                    suppress = false
+                    return
+                end
+                if #shown < #state.value then
+                    state.value = state.value:sub(1, #shown)
                 else
-                    local appended = shown:gsub("•", "")
-                    if #appended > 0 then
-                        real.value = real.value .. appended
-                    elseif #shown > #real.value then
-                        real.value = real.value .. string.rep("*", #shown - #real.value)
+                    local delta = shown:gsub("•", "")
+                    if #delta > 0 then
+                        state.value = (state.value .. delta):sub(1, 128)
                     end
                 end
                 suppress = true
-                box.Text = string.rep("•", #real.value)
+                box.Text = string.rep("•", #state.value)
                 suppress = false
-                pcall(function() box.CursorPosition = #box.Text + 1 end)
             end)
-            box.GetReal = function() return real.value end
         end
-        return wrap, box, real
+        return wrap, box, state
     end
 
     local fieldY = 52
     local usernameBox, passwordBox, keyBox
+    local passwordState
     if wantUser then
         local _, box = makeInput("Username", "user", fieldY, false)
         usernameBox = box
@@ -7089,10 +7090,12 @@ function library:Login(options)
         fieldY = fieldY + 50
     end
     if wantPass then
-        local _, box = makeInput("Password", "lock", fieldY, true)
+        local _, box, st = makeInput("Password", "lock", fieldY, true)
         passwordBox = box
-        if type(saved.password) == "string" and saved.password ~= "" then
-            passwordBox.Text = saved.password
+        passwordState = st
+        if type(saved.password) == "string" and #saved.password < 128 then
+            passwordState.value = saved.password
+            passwordBox.Text = string.rep("•", #saved.password)
         end
         fieldY = fieldY + 50
     end
@@ -7200,7 +7203,7 @@ function library:Login(options)
         if submitting then return end
         local creds = {
             username = usernameBox and usernameBox.Text or nil,
-            password = passwordBox and (passwordBox.GetReal and passwordBox.GetReal() or passwordBox.Text) or nil,
+            password = (passwordState and passwordState.value) or (passwordBox and passwordBox.Text) or nil,
             key = keyBox and keyBox.Text or nil,
         }
         if wantUser and (not creds.username or creds.username == "") then return setError("Enter a username.") end
