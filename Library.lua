@@ -1,3 +1,4 @@
+-- VERDIAN_BUILD 2026-09-03-c | tab return cfg + content fix
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -67,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.4.1",
+    version = "1.4.2-verdian",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -1601,8 +1602,12 @@ function library:tab(properties)
             pcall(function() selected_tab[3].Visible = false end)
             selected_tab[4].Visible = false
             selected_tab[4].Parent = library["cache"]
-            selected_tab[5].Visible = false
-            selected_tab[5].Parent = library["cache"]
+            pcall(function()
+                if selected_tab[5] then
+                    selected_tab[5].Visible = false
+                    selected_tab[5].Parent = library["cache"]
+                end
+            end)
         end
 
         library:tween(items["button"], { BackgroundTransparency = 0 })
@@ -1623,10 +1628,29 @@ function library:tab(properties)
             fade.Visible = true
             fade.BackgroundTransparency = 1
             fade.ZIndex = 2
+            fade.ClipsDescendants = false
         end
+        -- force content visible
+        pcall(function()
+            for _, d in ipairs(items["tab_holder"]:GetDescendants()) do
+                if d:IsA("GuiObject") and d.BackgroundTransparency == 1 and d:IsA("Frame") then
+                    -- leave
+                end
+            end
+            items["tab_holder"].Visible = true
+            if items["_colRow"] then items["_colRow"].Visible = true end
+            if items["_colLeft"] then items["_colLeft"].Visible = true end
+            if items["_colRight"] then items["_colRight"].Visible = true end
+        end)
         task.defer(function() pcall(library.RefreshPageScroll) end)
-        items["multi_section_button_holder"].Visible = true
-        items["multi_section_button_holder"].Parent = self.items["multi_holder"]
+        pcall(function()
+            local msh = items["multi_section_button_holder"]
+            local mh = self.items and self.items["multi_holder"]
+            if msh and mh then
+                msh.Visible = true
+                msh.Parent = mh
+            end
+        end)
 
         self.selected_tab = {
             items["button"],
@@ -1983,30 +2007,30 @@ function library.OpenSearch()
     end
 
     if library._searchGui and library._searchGui.Parent then
-        library._searchGui:Destroy()
+        pcall(function() library._searchGui:Destroy() end)
     end
 
-    local host = library["items"]
     local main = library._menuMain
-    if not main and host then
-        pcall(function()
+    if not main then
+        local host = library["items"]
+        if host then
             for _, ch in ipairs(host:GetChildren()) do
-                if ch:IsA("Frame") and ch.AbsoluteSize.X > 400 then
+                if ch:IsA("Frame") and ch.AbsoluteSize.X > 300 then
                     main = ch
                     break
                 end
             end
-        end)
+            if not main then main = host end
+        end
     end
-    if not main then
-        main = host
-    end
+    if not main then return end
 
     local gui = library:create("Frame", {
         Parent = main,
         Size = dim2(1, 0, 1, 0),
         BackgroundTransparency = 1,
-        ZIndex = 500,
+        BorderSizePixel = 0,
+        ZIndex = 600,
     })
     library._searchGui = gui
 
@@ -2014,227 +2038,151 @@ function library.OpenSearch()
         Parent = gui,
         Size = dim2(1, 0, 1, 0),
         BackgroundColor3 = rgb(0, 0, 0),
-        BackgroundTransparency = 0.55,
+        BackgroundTransparency = 0.45,
         Text = "",
         AutoButtonColor = false,
-        ZIndex = 500,
         BorderSizePixel = 0,
+        ZIndex = 600,
     })
     library:create("UICorner", { Parent = dimmer, CornerRadius = dim(0, 14) })
 
     local panel = library:create("Frame", {
         Parent = gui,
         AnchorPoint = vec2(0.5, 0.5),
-        Position = dim2(0.5, 0, 0.5, 0),
-        Size = dim2(0, 420, 0, 360),
+        Position = dim2(0.5, 0, 0.42, 0),
+        Size = dim2(0, 440, 0, 400),
         BackgroundColor3 = themes.preset.background,
         BorderSizePixel = 0,
-        ZIndex = 501,
+        ZIndex = 601,
     })
     library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 12) })
     library:create("UIStroke", { Parent = panel, Color = themes.preset.line, Thickness = 1 })
 
-    library:create("TextLabel", {
+    -- header bar
+    local header = library:create("Frame", {
         Parent = panel,
+        Size = dim2(1, 0, 0, 44),
+        BackgroundColor3 = themes.preset.section or themes.preset.element,
+        BorderSizePixel = 0,
+        ZIndex = 602,
+    })
+    library:create("UICorner", { Parent = header, CornerRadius = dim(0, 12) })
+    -- mask bottom corners of header
+    library:create("Frame", {
+        Parent = header,
+        Position = dim2(0, 0, 1, -12),
+        Size = dim2(1, 0, 0, 12),
+        BackgroundColor3 = themes.preset.section or themes.preset.element,
+        BorderSizePixel = 0,
+        ZIndex = 602,
+    })
+
+    library:create("TextLabel", {
+        Parent = header,
         BackgroundTransparency = 1,
-        Position = dim2(0, 16, 0, 12),
-        Size = dim2(1, -48, 0, 20),
+        Position = dim2(0, 16, 0, 0),
+        Size = dim2(1, -50, 1, 0),
         FontFace = fonts.font,
         Text = "Search",
         TextSize = 15,
         TextColor3 = themes.preset.text,
         TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 502,
+        ZIndex = 603,
     })
 
     local close = library:create("TextButton", {
-        Parent = panel,
-        Position = dim2(1, -30, 0, 10),
-        Size = dim2(0, 20, 0, 20),
-        BackgroundTransparency = 1,
+        Parent = header,
+        Position = dim2(1, -36, 0.5, -12),
+        Size = dim2(0, 24, 0, 24),
+        BackgroundColor3 = themes.preset.element,
         Text = "×",
         TextColor3 = themes.preset.dimtext,
         FontFace = fonts.font,
-        TextSize = 18,
-        ZIndex = 502,
+        TextSize = 16,
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        ZIndex = 603,
     })
+    library:create("UICorner", { Parent = close, CornerRadius = dim(0, 6) })
 
     local inputWrap = library:create("Frame", {
         Parent = panel,
-        Position = dim2(0, 16, 0, 40),
-        Size = dim2(1, -32, 0, 34),
+        Position = dim2(0, 14, 0, 52),
+        Size = dim2(1, -28, 0, 36),
         BackgroundColor3 = themes.preset.element,
         BorderSizePixel = 0,
-        ZIndex = 502,
+        ZIndex = 602,
     })
     library:create("UICorner", { Parent = inputWrap, CornerRadius = dim(0, 8) })
+    library:create("UIStroke", { Parent = inputWrap, Color = themes.preset.line, Thickness = 1 })
 
     local sIcon = library:create("ImageLabel", {
         Parent = inputWrap,
         BackgroundTransparency = 1,
-        Size = dim2(0, 14, 0, 14),
-        Position = dim2(0, 10, 0.5, -7),
+        Size = dim2(0, 15, 0, 15),
+        Position = dim2(0, 12, 0.5, -7),
         ImageColor3 = themes.preset.dimicon,
-        ZIndex = 503,
+        ZIndex = 603,
     })
     pcall(function() ApplyIcon(sIcon, "search") end)
 
     local input = library:create("TextBox", {
         Parent = inputWrap,
-        Position = dim2(0, 32, 0, 0),
-        Size = dim2(1, -40, 1, 0),
+        Position = dim2(0, 34, 0, 0),
+        Size = dim2(1, -44, 1, 0),
         BackgroundTransparency = 1,
         FontFace = fonts.font,
         Text = "",
-        PlaceholderText = "Search toggles, sliders, sections...",
+        PlaceholderText = "Type to search features...",
         PlaceholderColor3 = themes.preset.dimtext,
         TextColor3 = themes.preset.text,
-        TextSize = 13,
+        TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
         ClearTextOnFocus = false,
-        ZIndex = 503,
+        ZIndex = 603,
     })
 
     local list = library:create("ScrollingFrame", {
         Parent = panel,
-        Position = dim2(0, 16, 0, 86),
-        Size = dim2(1, -32, 1, -100),
+        Position = dim2(0, 14, 0, 98),
+        Size = dim2(1, -28, 1, -112),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
-        ScrollBarImageColor3 = rgb(60, 60, 66),
+        ScrollBarImageColor3 = rgb(70, 70, 78),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
         CanvasSize = dim2(0, 0, 0, 0),
-        ZIndex = 502,
+        ZIndex = 602,
     })
     library:create("UIListLayout", {
         Parent = list,
-        Padding = dim(0, 5),
+        Padding = dim(0, 6),
         SortOrder = Enum.SortOrder.LayoutOrder,
     })
 
     local empty = library:create("TextLabel", {
         Parent = panel,
         BackgroundTransparency = 1,
-        Position = dim2(0, 0, 0, 160),
+        Position = dim2(0, 0, 0, 180),
         Size = dim2(1, 0, 0, 20),
         FontFace = fonts.font,
         Text = "Start typing to search",
         TextSize = 13,
         TextColor3 = themes.preset.dimtext,
-        ZIndex = 502,
+        ZIndex = 602,
     })
 
     local function flash(obj)
         if not obj or not obj.Parent then return end
         local old = obj.BackgroundColor3
         pcall(function()
-            library:tween(obj, { BackgroundColor3 = themes.preset.accent }, Enum.EasingStyle.Quad, 0.15)
-            task.delay(0.35, function()
+            library:tween(obj, { BackgroundColor3 = themes.preset.accent }, Enum.EasingStyle.Quad, 0.12)
+            task.delay(0.4, function()
                 pcall(function()
-                    library:tween(obj, { BackgroundColor3 = old }, Enum.EasingStyle.Quad, 0.35)
+                    library:tween(obj, { BackgroundColor3 = old }, Enum.EasingStyle.Quad, 0.4)
                 end)
             end)
         end)
-    end
-
-    local function jump(item)
-        pcall(function()
-            local tab = item.tab
-            if tab and tab.open_tab then
-                tab.open_tab()
-            elseif tab and type(tab.Select) == "function" then
-                tab:Select()
-            end
-            local sec = item.section
-            if sec and sec.items and sec.items["outline"] then
-                flash(sec.items["outline"])
-            end
-        end)
-        if library._searchGui then
-            pcall(function() library._searchGui:Destroy() end)
-            library._searchGui = nil
-        end
-    end
-
-    local function render(q)
-        for _, child in ipairs(list:GetChildren()) do
-            if child:IsA("TextButton") then
-                child:Destroy()
-            end
-        end
-        q = tostring(q or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
-        empty.Visible = (q == "")
-        if q == "" then
-            empty.Text = "Start typing to search"
-            return
-        end
-        local n = 0
-        for _, item in ipairs(library._searchIndex) do
-            if n >= 60 then break end
-            local name = tostring(item.name or "")
-            local flag = tostring(item.flag or "")
-            local kind = tostring(item.kind or "")
-            local hay = (name .. " " .. flag .. " " .. kind):lower()
-            if hay:find(q, 1, true) then
-                n = n + 1
-                local path = name
-                if item.section and item.section.name then
-                    path = tostring(item.section.name) .. "  ·  " .. name
-                end
-                local b = library:create("TextButton", {
-                    Parent = list,
-                    Size = dim2(1, 0, 0, 40),
-                    BackgroundColor3 = themes.preset.element,
-                    BorderSizePixel = 0,
-                    Text = "",
-                    AutoButtonColor = false,
-                    ZIndex = 503,
-                })
-                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 7) })
-                library:create("Frame", {
-                    Parent = b,
-                    Size = dim2(0, 3, 1, -12),
-                    Position = dim2(0, 6, 0, 6),
-                    BackgroundColor3 = themes.preset.accent,
-                    BorderSizePixel = 0,
-                    ZIndex = 504,
-                })
-                library:create("TextLabel", {
-                    Parent = b,
-                    BackgroundTransparency = 1,
-                    Position = dim2(0, 16, 0, 4),
-                    Size = dim2(1, -24, 0, 18),
-                    FontFace = fonts.font,
-                    Text = path,
-                    TextSize = 13,
-                    TextColor3 = themes.preset.text,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    ZIndex = 504,
-                })
-                library:create("TextLabel", {
-                    Parent = b,
-                    BackgroundTransparency = 1,
-                    Position = dim2(0, 16, 0, 20),
-                    Size = dim2(1, -24, 0, 14),
-                    FontFace = fonts.font,
-                    Text = (kind ~= "" and kind or "Option") .. (flag ~= "" and ("  ·  " .. flag) or ""),
-                    TextSize = 11,
-                    TextColor3 = themes.preset.dimtext,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    ZIndex = 504,
-                })
-                b.MouseButton1Click:Connect(function()
-                    jump(item)
-                end)
-            end
-        end
-        if n == 0 then
-            empty.Visible = true
-            empty.Text = "No results"
-        end
     end
 
     local function closeSearch()
@@ -2244,15 +2192,103 @@ function library.OpenSearch()
         end
     end
 
+    local function jump(item)
+        pcall(function()
+            local tab = item.tab
+            if tab and tab.open_tab then
+                tab.open_tab()
+            end
+            local sec = item.section
+            if sec and sec.items and sec.items["outline"] then
+                flash(sec.items["outline"])
+            end
+        end)
+        closeSearch()
+    end
+
+    local function render(q)
+        for _, child in ipairs(list:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+        q = tostring(q or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+        empty.Visible = (q == "")
+        if q == "" then
+            empty.Text = "Start typing to search"
+            return
+        end
+        local n = 0
+        for _, item in ipairs(library._searchIndex) do
+            if n >= 80 then break end
+            local name = tostring(item.name or "")
+            local flag = tostring(item.flag or "")
+            local kind = tostring(item.kind or "Option")
+            local hay = (name .. " " .. flag .. " " .. kind):lower()
+            if hay:find(q, 1, true) then
+                n = n + 1
+                local path = name
+                if item.section and item.section.name then
+                    path = tostring(item.section.name) .. "  ·  " .. name
+                end
+                local b = library:create("TextButton", {
+                    Parent = list,
+                    Size = dim2(1, 0, 0, 44),
+                    BackgroundColor3 = themes.preset.element,
+                    BorderSizePixel = 0,
+                    Text = "",
+                    AutoButtonColor = false,
+                    ZIndex = 603,
+                })
+                library:create("UICorner", { Parent = b, CornerRadius = dim(0, 8) })
+                library:create("Frame", {
+                    Parent = b,
+                    Size = dim2(0, 3, 1, -14),
+                    Position = dim2(0, 7, 0, 7),
+                    BackgroundColor3 = themes.preset.accent,
+                    BorderSizePixel = 0,
+                    ZIndex = 604,
+                })
+                library:create("TextLabel", {
+                    Parent = b,
+                    BackgroundTransparency = 1,
+                    Position = dim2(0, 18, 0, 5),
+                    Size = dim2(1, -28, 0, 18),
+                    FontFace = fonts.font,
+                    Text = path,
+                    TextSize = 13,
+                    TextColor3 = themes.preset.text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 604,
+                })
+                library:create("TextLabel", {
+                    Parent = b,
+                    BackgroundTransparency = 1,
+                    Position = dim2(0, 18, 0, 24),
+                    Size = dim2(1, -28, 0, 14),
+                    FontFace = fonts.font,
+                    Text = kind .. (flag ~= "" and ("  ·  " .. flag) or ""),
+                    TextSize = 11,
+                    TextColor3 = themes.preset.dimtext,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 604,
+                })
+                b.MouseButton1Click:Connect(function() jump(item) end)
+            end
+        end
+        if n == 0 then
+            empty.Visible = true
+            empty.Text = "No results"
+        end
+    end
+
     close.MouseButton1Click:Connect(closeSearch)
     dimmer.MouseButton1Click:Connect(closeSearch)
     input:GetPropertyChangedSignal("Text"):Connect(function()
         render(input.Text)
     end)
     render("")
-    task.defer(function()
-        pcall(function() input:CaptureFocus() end)
-    end)
+    task.defer(function() pcall(function() input:CaptureFocus() end) end)
 end
 
 
