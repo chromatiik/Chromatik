@@ -1,4 +1,4 @@
--- VERDIAN_BUILD 2026-09-03-f | tab return cfg + content fix
+-- VERDIAN_BUILD 2026-09-03-g | tab return cfg + content fix
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.4.5-verdian",
+    version = "1.4.6-verdian",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -353,8 +353,12 @@ end
 
 function library:create(instance, options)
     local ins = Instance.new(instance)
-    for prop, value in options do
-        ins[prop] = value
+    if type(options) == "table" then
+        for prop, value in pairs(options) do
+            pcall(function()
+                ins[prop] = value
+            end)
+        end
     end
     return ins
 end
@@ -743,12 +747,23 @@ function library:window(properties)
             BackgroundTransparency = 1,
             Name = "\0",
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 72, 1, -12),
-            Position = dim2(0, 8, 0, 56),
+            Size = dim2(0, 64, 1, -64),
+            Position = dim2(0, 6, 0, 52),
             Visible = true,
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 10,
+            ClipsDescendants = true,
+        })
+        -- subtle divider line (inside menu bounds)
+        library:create("Frame", {
+            Parent = items["main"],
+            BackgroundColor3 = themes.preset.line,
+            BorderSizePixel = 0,
+            Position = dim2(0, 70, 0, 52),
+            Size = dim2(0, 1, 1, -64),
+            ZIndex = 11,
+            Name = "SideDivider",
         })
 
         library:create("Frame", {
@@ -781,8 +796,8 @@ function library:window(properties)
             TextColor3 = themes.preset.dimtext,
             AutoButtonColor = false,
             BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 52, 0, 12),
-            Size = dim2(0, 160, 0, 32),
+            Position = dim2(0, 14, 0, 12),
+            Size = dim2(0, 200, 0, 34),
             BorderSizePixel = 0,
             ZIndex = 15,
         })
@@ -877,9 +892,9 @@ function library:window(properties)
         library:create("UIListLayout", {
             Parent = items["button_holder"],
             FillDirection = Enum.FillDirection.Vertical,
-            Padding = dim(0, 8),
+            Padding = dim(0, 10),
             SortOrder = Enum.SortOrder.LayoutOrder,
-            VerticalAlignment = Enum.VerticalAlignment.Top,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
         })
 
@@ -890,6 +905,7 @@ function library:window(properties)
             Size = dim2(0, 32, 0, 32),
             BorderSizePixel = 0,
             ZIndex = 15,
+            Visible = false,
         })
         items["title_icon"] = library:create("ImageLabel", {
             Parent = items["title"],
@@ -986,6 +1002,12 @@ function library:window(properties)
             for _, key in ipairs(link.keys) do
                 url = url or properties[key]
             end
+            if not url then
+                if link.keys[1] == "discord" then url = "https://discord.gg/emblem"
+                elseif link.keys[1] == "telegram" then url = "https://t.me/emblem"
+                elseif link.keys[1] == "youtube" then url = "https://youtube.com"
+                end
+            end
             if url then
                 local btn = library:create("TextButton", {
                     Parent = socialGroup,
@@ -1026,7 +1048,15 @@ function library:window(properties)
                         if setclipboard then setclipboard(tostring(url)) end
                     end)
                     pcall(function()
-                        if library.notify then
+                        -- some executors support opening URLs
+                        if request then
+                            -- no-op; clipboard is primary
+                        end
+                    end)
+                    pcall(function()
+                        if library.notification then
+                            library:notification("Link copied", 2)
+                        elseif library.notify then
                             library:notify("Link copied", 2)
                         end
                     end)
@@ -1058,15 +1088,58 @@ function library:window(properties)
                 if ok and content then avatarBtn.Image = content end
             end)
             items["avatar_btn"] = avatarBtn
+            local drop
+            avatarBtn.MouseButton1Click:Connect(function()
+                if drop and drop.Parent then
+                    drop:Destroy()
+                    drop = nil
+                    return
+                end
+                drop = library:create("Frame", {
+                    Parent = items["main"],
+                    AnchorPoint = vec2(1, 0),
+                    Position = dim2(1, -12, 0, 48),
+                    Size = dim2(0, 160, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundColor3 = themes.preset.section or themes.preset.element,
+                    BorderSizePixel = 0,
+                    ZIndex = 40,
+                })
+                library:create("UICorner", { Parent = drop, CornerRadius = dim(0, 8) })
+                library:create("UIStroke", { Parent = drop, Color = themes.preset.line, Thickness = 1 })
+                library:create("UIPadding", { Parent = drop, PaddingTop = dim(0, 8), PaddingBottom = dim(0, 8), PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10) })
+                library:create("UIListLayout", { Parent = drop, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+                local function addOpt(text, fn)
+                    local b = library:create("TextButton", {
+                        Parent = drop, Size = dim2(1, 0, 0, 28), BackgroundColor3 = themes.preset.element,
+                        Text = text, Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = themes.preset.text,
+                        AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 41,
+                    })
+                    library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
+                    b.MouseButton1Click:Connect(function()
+                        pcall(fn)
+                        if drop then drop:Destroy() drop = nil end
+                    end)
+                end
+                addOpt("Copy username", function()
+                    if setclipboard then setclipboard(lp.Name) end
+                end)
+                addOpt("Copy user id", function()
+                    if setclipboard then setclipboard(tostring(lp.UserId)) end
+                end)
+                addOpt("Unload menu", function()
+                    library:unload_menu()
+                end)
+            end)
         end
 
 items["global_fade"] = library:create("Frame", {
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 88, 0, 56),
+            Position = dim2(0, 78, 0, 52),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -100, 1, -68),
+            Size = dim2(1, -90, 1, -64),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 2,
@@ -1401,11 +1474,12 @@ function library:tab(properties)
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             Name = "\0",
-            Size = dim2(0, 48, 0, 48),
+            Size = dim2(0, 42, 0, 42),
             AutomaticSize = Enum.AutomaticSize.X,
             BorderSizePixel = 0,
             TextSize = 13,
             BackgroundColor3 = themes.preset.accent,
+            BackgroundTransparency = 1,
             ZIndex = 13,
         })
         library:apply_theme(items["button"], "accent", "BackgroundColor3")
@@ -1681,8 +1755,8 @@ function library:tab(properties)
             end)
         end
 
-        library:tween(items["button"], { BackgroundTransparency = 0 })
-        library:tween(items["icon"], { ImageColor3 = rgb(255, 255, 255) })
+        library:tween(items["button"], { BackgroundTransparency = 0.82, BackgroundColor3 = themes.preset.accent })
+        library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
         library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 1 }, Enum.EasingStyle.Quad, 0.22)
         items["name"].Visible = false
         library:tween(items["tab_holder"], { Size = dim2(1, 0, 1, 0) }, Enum.EasingStyle.Quad, 0.35)
@@ -2551,21 +2625,31 @@ function library:section(properties)
         library:apply_theme(items["Icon"], "accent", "ImageColor3")
 
         items["section_title"] = library:create("TextLabel", {
-            FontFace = fonts.font or Font.fromEnum(Enum.Font.GothamMedium),
+            Font = Enum.Font.GothamMedium,
             TextColor3 = rgb(255, 255, 255),
             BorderColor3 = rgb(0, 0, 0),
             Text = tostring(cfg.name or "Section"),
             Parent = items["button"],
             Name = "\0",
             Size = dim2(1, -50, 1, 0),
-            Position = dim2(0, 40, 0, 0),
+            Position = dim2(0, 36, 0, 0),
             BackgroundTransparency = 1,
+            TextTransparency = 0,
+            Visible = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
             BorderSizePixel = 0,
-            TextSize = 15,
+            TextSize = 14,
+            ZIndex = 8,
             BackgroundColor3 = rgb(255, 255, 255),
         })
+        pcall(function()
+            items["section_title"].Font = Enum.Font.GothamMedium
+            items["section_title"].Text = tostring(cfg.name or "Section")
+            items["section_title"].TextTransparency = 0
+            items["section_title"].Visible = true
+            items["section_title"].ZIndex = 10
+        end)
 
         library:create("Frame", {
             AnchorPoint = vec2(0, 1),
@@ -2638,10 +2722,13 @@ function library:toggle(options)
     })
 
     items["name"] = library:create("TextLabel", {
-        FontFace = fonts.font or Font.fromEnum(Enum.Font.GothamMedium),
+        Font = Enum.Font.GothamMedium,
         TextColor3 = rgb(255, 255, 255),
         BorderColor3 = rgb(0, 0, 0),
         Text = tostring(cfg.name or "Toggle"),
+        TextTransparency = 0,
+        Visible = true,
+        ZIndex = 8,
         Parent = items["toggle"],
         Name = "\0",
         Size = dim2(1, -50, 0, 18),
@@ -2652,6 +2739,13 @@ function library:toggle(options)
         TextSize = 14,
         BackgroundColor3 = rgb(255, 255, 255),
     })
+    pcall(function()
+        items["name"].Font = Enum.Font.GothamMedium
+        items["name"].Text = tostring(cfg.name or "Toggle")
+        items["name"].TextTransparency = 0
+        items["name"].Visible = true
+        items["name"].TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
 
     library:create("UIPadding", {
         Parent = items["name"],
