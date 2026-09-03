@@ -101,16 +101,16 @@ local notifications = library.notifications
 
 local themes = {
     preset = {
-        accent = rgb(155, 150, 219),
-        background = rgb(14, 14, 16),
-        section = rgb(22, 22, 24),
-        element = rgb(25, 25, 29),
-        light = rgb(33, 33, 35),
-        hover = rgb(39, 39, 43),
-        line = rgb(21, 21, 23),
+        accent = rgb(255, 107, 122),
+        background = rgb(12, 11, 13),
+        section = rgb(20, 18, 21),
+        element = rgb(24, 21, 25),
+        light = rgb(32, 29, 33),
+        hover = rgb(39, 35, 41),
+        line = rgb(28, 25, 30),
         text = rgb(255, 255, 255),
-        dimtext = rgb(72, 72, 73),
-        dimicon = rgb(72, 72, 73),
+        dimtext = rgb(120, 116, 122),
+        dimicon = rgb(120, 116, 122),
     },
     utility = {
         accent = {
@@ -388,12 +388,6 @@ function library:update_theme(theme, color)
         end
     end
     themes.preset[theme] = color
-
-    if theme == "accent" and library._active_tab_icon and library._active_tab_icon.Parent then
-        pcall(function()
-            library._active_tab_icon.ImageColor3 = color
-        end)
-    end
 
     if theme == "accent" and library._toggle_hooks then
         for _, switch in pairs(library._toggle_hooks) do
@@ -869,6 +863,58 @@ function library:window(properties)
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.line,
         })
+
+        local socialLinks = {
+            { keys = { "discord", "Discord" }, icon = "message-circle" },
+            { keys = { "telegram", "Telegram" }, icon = "send" },
+            { keys = { "youtube", "Youtube", "YouTube" }, icon = "play" },
+        }
+        local socialOffset = 14
+        for i = #socialLinks, 1, -1 do
+            local link = socialLinks[i]
+            local url
+            for _, key in ipairs(link.keys) do
+                url = url or properties[key]
+            end
+            if url then
+                local btn = library:create("TextButton", {
+                    Parent = items["multi_holder"], Text = "", AutoButtonColor = false,
+                    AnchorPoint = vec2(1, 0.5), Position = dim2(1, -socialOffset - 46, 0.5, 0),
+                    Size = dim2(0, 30, 0, 30), ZIndex = 6, BorderSizePixel = 0,
+                    BackgroundColor3 = themes.preset.element,
+                })
+                library:create("UICorner", { Parent = btn, CornerRadius = dim(1, 0) })
+                local icon = library:create("ImageLabel", {
+                    Parent = btn, BackgroundTransparency = 1, AnchorPoint = vec2(0.5, 0.5),
+                    Position = dim2(0.5, 0, 0.5, 0), Size = dim2(0, 15, 0, 15),
+                    ImageColor3 = themes.preset.dimicon, BorderSizePixel = 0, ZIndex = 7,
+                })
+                ApplyIcon(icon, link.icon)
+                btn.MouseEnter:Connect(function()
+                    library:tween(btn, { BackgroundColor3 = themes.preset.hover })
+                    library:tween(icon, { ImageColor3 = rgb(255, 255, 255) })
+                end)
+                btn.MouseLeave:Connect(function()
+                    library:tween(btn, { BackgroundColor3 = themes.preset.element })
+                    library:tween(icon, { ImageColor3 = themes.preset.dimicon })
+                end)
+                btn.MouseButton1Click:Connect(function()
+                    local ok = pcall(function()
+                        if setclipboard then setclipboard(url) end
+                    end)
+                    pcall(function()
+                        if library.Notification then
+                            library:Notification({
+                                Title = ok and "Copied" or "Unsupported",
+                                Content = ok and (url .. " copied to clipboard") or "This executor can't set the clipboard.",
+                                Duration = 3,
+                            })
+                        end
+                    end)
+                end)
+                socialOffset = socialOffset + 38
+            end
+        end
 
 
         items["profile_btn"] = library:create("TextButton", {
@@ -1380,8 +1426,9 @@ function library:tab(properties)
             Size = dim2(1, 0, 0, 35),
             BorderSizePixel = 0,
             TextSize = 16,
-            BackgroundColor3 = rgb(29, 29, 29),
+            BackgroundColor3 = themes.preset.accent,
         })
+        library:apply_theme(items["button"], "accent", "BackgroundColor3")
 
         items["icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.dimicon,
@@ -1408,6 +1455,7 @@ function library:tab(properties)
             Size = dim2(0, 0, 1, 0),
             Position = dim2(0, 40, 0, 0),
             BackgroundTransparency = 1,
+            TextTransparency = 1,
             TextXAlignment = Enum.TextXAlignment.Left,
             BorderSizePixel = 0,
             AutomaticSize = Enum.AutomaticSize.X,
@@ -1634,7 +1682,7 @@ function library:tab(properties)
             end
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
-            library:tween(selected_tab[3], { TextColor3 = themes.preset.dimtext })
+            library:tween(selected_tab[3], { TextColor3 = themes.preset.dimtext, TextTransparency = 1 })
             selected_tab[4].Visible = false
             selected_tab[4].Parent = library["cache"]
             selected_tab[5].Visible = false
@@ -1642,9 +1690,8 @@ function library:tab(properties)
         end
 
         library:tween(items["button"], { BackgroundTransparency = 0 })
-        library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
-        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255) })
-        library._active_tab_icon = items["icon"]
+        library:tween(items["icon"], { ImageColor3 = rgb(255, 255, 255) })
+        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 0 }, Enum.EasingStyle.Quad, 0.25)
         library:tween(items["tab_holder"], { Size = dim2(1, -196, 1, -81) }, Enum.EasingStyle.Quad, 0.4)
 
         items["tab_holder"].Visible = true
@@ -3070,7 +3117,7 @@ function library:dropdown(options)
 
 
             popupFrame.BackgroundColor3 = themes.preset.light
-            popupFrame.BackgroundTransparency = 0
+            popupFrame.BackgroundTransparency = 1
             popupFrame.Position = dim2(0, 5, 0, closedHeight() - 2)
             popupFrame.Size = dim2(1, -10, 0, 0)
             popupFrame.Parent = items["dropdown"]
@@ -3084,12 +3131,14 @@ function library:dropdown(options)
             }, Enum.EasingStyle.Quint, 0.18)
             library:tween(popupFrame, {
                 Size = dim2(1, -10, 0, targetH),
+                BackgroundTransparency = 0,
             }, Enum.EasingStyle.Quint, 0.18)
             library:tween(items["arrow"], { Rotation = 180 }, Enum.EasingStyle.Quint, 0.18)
             library:close_element(cfg)
         else
             library:tween(popupFrame, {
                 Size = dim2(1, -10, 0, 0),
+                BackgroundTransparency = 1,
             }, Enum.EasingStyle.Quint, 0.15)
             library:tween(items["dropdown"], {
                 Size = dim2(1, 0, 0, closedHeight()),
@@ -6858,6 +6907,308 @@ function library:PlayerCard(params)
     end
 
     return api
+end
+
+
+function library:Login(options)
+    options = options or {}
+    local fields = options.fields or options.Fields or { "key" }
+    local cfg = {
+        title = options.title or options.Title or "Login",
+        fields = fields,
+        remember = options.remember ~= false and options.Remember ~= false,
+        onSubmit = options.onSubmit or options.OnSubmit or options.callback or options.Callback,
+        onSuccess = options.onSuccess or options.OnSuccess or function() end,
+        copyright = options.copyright or options.Copyright,
+        saveFile = library.directory .. "/login_" .. (options.saveKey or options.SaveKey or "default") .. ".json",
+    }
+
+    local wantUser, wantPass, wantKey = false, false, false
+    for _, f in ipairs(fields) do
+        f = string.lower(f)
+        if f == "username" or f == "user" then wantUser = true end
+        if f == "password" or f == "pass" then wantPass = true end
+        if f == "key" or f == "license" then wantKey = true end
+    end
+
+    local saved = {}
+    pcall(function()
+        if isfile and isfile(cfg.saveFile) and readfile then
+            saved = http_service:JSONDecode(readfile(cfg.saveFile)) or {}
+        end
+    end)
+
+    local gui = library:create("ScreenGui", {
+        Parent = get_hui(),
+        Name = "\0",
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+        IgnoreGuiInset = true,
+        DisplayOrder = 2000,
+    })
+
+    local cardW, cardH = 460, 400
+    local card = library:create("Frame", {
+        Parent = gui,
+        AnchorPoint = vec2(0.5, 0.5),
+        Position = dim2(0.5, 0, 0.5, 0),
+        Size = dim2(0, cardW, 0, cardH),
+        BackgroundColor3 = themes.preset.background,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+    })
+    library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
+    local cardStroke = library:create("UIStroke", { Parent = card, Color = themes.preset.line, Thickness = 1 })
+
+    local glowA = library:create("Frame", {
+        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.15, 0, 0.05, 0),
+        Size = dim2(0, 220, 0, 220), Rotation = 0, BackgroundColor3 = themes.preset.accent,
+        BackgroundTransparency = 0.88, BorderSizePixel = 0, ZIndex = 0,
+    })
+    library:create("UICorner", { Parent = glowA, CornerRadius = dim(1, 0) })
+    local glowB = library:create("Frame", {
+        Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.9, 0, 0.95, 0),
+        Size = dim2(0, 260, 0, 260), BackgroundColor3 = themes.preset.accent,
+        BackgroundTransparency = 0.92, BorderSizePixel = 0, ZIndex = 0,
+    })
+    library:create("UICorner", { Parent = glowB, CornerRadius = dim(1, 0) })
+
+    local form = library:create("Frame", {
+        Parent = card, Position = dim2(0.5, 0, 0, 40), AnchorPoint = vec2(0.5, 0),
+        Size = dim2(0, 300, 1, -80), BackgroundTransparency = 1, ZIndex = 2,
+    })
+
+    local title = library:create("TextLabel", {
+        Parent = form, Size = dim2(1, 0, 0, 30), Font = Enum.Font.GothamBold,
+        FontFace = fonts.font_bold or fonts.font, Text = cfg.title, TextSize = 24,
+        TextColor3 = themes.preset.text, BackgroundTransparency = 1, ZIndex = 2,
+    })
+    local underline = library:create("Frame", {
+        Parent = form, Position = dim2(0.5, 0, 0, 34), AnchorPoint = vec2(0.5, 0),
+        Size = dim2(0, 70, 0, 2), BorderSizePixel = 0, ZIndex = 2,
+    })
+    library:create("UIGradient", {
+        Parent = underline,
+        Color = rgbseq({ rgbkey(0, themes.preset.accent), rgbkey(1, themes.preset.accent) }),
+        Transparency = numseq({ numkey(0, 0), numkey(1, 1) }),
+    })
+
+    local function makeInput(labelText, iconName, isSecret, y)
+        local wrap = library:create("Frame", {
+            Parent = form, Position = dim2(0, 0, 0, y), Size = dim2(1, 0, 0, 42),
+            BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 2,
+        })
+        library:create("UICorner", { Parent = wrap, CornerRadius = dim(0, 8) })
+        library:create("UIStroke", { Parent = wrap, Color = themes.preset.line, Thickness = 1 })
+        local icon = library:create("ImageLabel", {
+            Parent = wrap, AnchorPoint = vec2(0, 0.5), Position = dim2(0, 13, 0.5, 0),
+            Size = dim2(0, 15, 0, 15), BackgroundTransparency = 1,
+            ImageColor3 = themes.preset.dimicon, ZIndex = 3,
+        })
+        ApplyIcon(icon, iconName)
+        local box = library:create("TextBox", {
+            Parent = wrap, Position = dim2(0, 38, 0, 0), Size = dim2(1, -48, 1, 0),
+            BackgroundTransparency = 1, PlaceholderText = labelText, Text = "",
+            PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
+            FontFace = fonts.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
+            ClearTextOnFocus = false, TextTruncate = Enum.TextTruncate.AtEnd,
+            ZIndex = 3,
+        })
+        if isSecret then
+            local real = ""
+            box:GetPropertyChangedSignal("Text"):Connect(function()
+                local shown = box.Text
+                if #shown > #real then
+                    real = real .. shown:sub(#real + 1)
+                elseif #shown < #real then
+                    real = real:sub(1, #shown)
+                end
+                local masked = string.rep("\226\128\162", #real)
+                if box.Text ~= masked then
+                    box.Text = masked
+                end
+            end)
+            box.GetReal = function() return real end
+        end
+        box.Focused:Connect(function()
+            library:tween(cardStroke, { Color = themes.preset.accent }, Enum.EasingStyle.Quad, 0.15)
+        end)
+        box.FocusLost:Connect(function()
+            library:tween(cardStroke, { Color = themes.preset.line }, Enum.EasingStyle.Quad, 0.15)
+        end)
+        return wrap, box
+    end
+
+    local fieldY = 56
+    local usernameBox, passwordBox, keyBox
+    if wantUser then
+        local _, box = makeInput("Username", "user", false, fieldY)
+        usernameBox = box
+        usernameBox.Text = saved.username or ""
+        fieldY = fieldY + 50
+    end
+    if wantPass then
+        local _, box = makeInput("Password", "lock", true, fieldY)
+        passwordBox = box
+        passwordBox.Text = saved.password or ""
+        pcall(function()
+            local textbox = passwordBox
+            textbox:GetPropertyChangedSignal("Text"):Connect(function() end)
+        end)
+        fieldY = fieldY + 50
+    end
+    if wantKey then
+        local _, box = makeInput("License key", "key-round", false, fieldY)
+        keyBox = box
+        keyBox.Text = saved.key or ""
+        fieldY = fieldY + 50
+    end
+
+    local signInBtn = library:create("TextButton", {
+        Parent = form, Position = dim2(0, 0, 0, fieldY + 6), Size = dim2(1, 0, 0, 42),
+        BackgroundColor3 = themes.preset.accent, AutoButtonColor = false, Text = "",
+        BorderSizePixel = 0, ZIndex = 2,
+    })
+    library:create("UICorner", { Parent = signInBtn, CornerRadius = dim(0, 8) })
+    library:apply_theme(signInBtn, "accent", "BackgroundColor3")
+    local signInLabel = library:create("TextLabel", {
+        Parent = signInBtn, Size = dim2(1, 0, 1, 0), Text = "Sign in", Font = Enum.Font.GothamBold,
+        FontFace = fonts.font_bold or fonts.font, TextSize = 15, TextColor3 = rgb(255, 255, 255),
+        BackgroundTransparency = 1, ZIndex = 3,
+    })
+    local spinner = library:create("ImageLabel", {
+        Parent = signInBtn, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+        Size = dim2(0, 18, 0, 18), BackgroundTransparency = 1, ImageColor3 = rgb(255, 255, 255),
+        Visible = false, ZIndex = 3, Image = "rbxassetid://4998437060",
+    })
+    library:connection(run.RenderStepped, function(dt)
+        if spinner.Visible then spinner.Rotation = (spinner.Rotation + dt * 260) % 360 end
+    end)
+
+    local errorLabel = library:create("TextLabel", {
+        Parent = form, Position = dim2(0, 0, 0, fieldY + 52), Size = dim2(1, 0, 0, 18),
+        Text = "", TextColor3 = rgb(240, 90, 90), FontFace = fonts.font, TextSize = 12.5,
+        BackgroundTransparency = 1, TextTransparency = 1, ZIndex = 2,
+    })
+
+    local rememberRow
+    local rememberOn = cfg.remember and (saved.remember == true)
+    local rememberCheck
+    if cfg.remember then
+        rememberRow = library:create("Frame", {
+            Parent = form, Position = dim2(0, 0, 0, fieldY + 76), Size = dim2(1, 0, 0, 18),
+            BackgroundTransparency = 1, ZIndex = 2,
+        })
+        rememberCheck = library:create("TextButton", {
+            Parent = rememberRow, Size = dim2(0, 16, 0, 16), Text = "", AutoButtonColor = false,
+            BackgroundColor3 = themes.preset.element, BorderSizePixel = 0, ZIndex = 2,
+        })
+        library:create("UICorner", { Parent = rememberCheck, CornerRadius = dim(0, 4) })
+        library:create("UIStroke", { Parent = rememberCheck, Color = themes.preset.line, Thickness = 1 })
+        local checkMark = library:create("ImageLabel", {
+            Parent = rememberCheck, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1,
+            ImageColor3 = rgb(255, 255, 255), ImageTransparency = 1, ZIndex = 3,
+        })
+        ApplyIcon(checkMark, "check")
+        library:create("TextLabel", {
+            Parent = rememberRow, Position = dim2(0, 24, 0, 0), Size = dim2(1, -24, 1, 0),
+            Text = "Remember me", TextColor3 = themes.preset.dimtext, FontFace = fonts.font,
+            TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, ZIndex = 2,
+        })
+        local function setRemember(v)
+            rememberOn = v
+            library:tween(rememberCheck, { BackgroundColor3 = v and themes.preset.accent or themes.preset.element })
+            library:tween(checkMark, { ImageTransparency = v and 0 or 1 }, Enum.EasingStyle.Quad, 0.12)
+        end
+        rememberCheck.MouseButton1Click:Connect(function() setRemember(not rememberOn) end)
+        setRemember(rememberOn)
+    end
+
+    local copyright = library:create("TextLabel", {
+        Parent = card, AnchorPoint = vec2(0.5, 1), Position = dim2(0.5, 0, 1, -14),
+        Size = dim2(1, -40, 0, 16), Text = cfg.copyright or "", TextColor3 = themes.preset.dimtext,
+        FontFace = fonts.font, TextSize = 11.5, BackgroundTransparency = 1, ZIndex = 2,
+    })
+
+    local submitting = false
+    local function setError(msg)
+        errorLabel.Text = msg or ""
+        library:tween(errorLabel, { TextTransparency = msg and 0 or 1 }, Enum.EasingStyle.Quad, 0.15)
+    end
+
+    local function setSubmitting(state)
+        submitting = state
+        signInLabel.Visible = not state
+        spinner.Visible = state
+        for _, box in ipairs({ usernameBox, passwordBox, keyBox }) do
+            if box then box.TextEditable = not state end
+        end
+    end
+
+    local function submit()
+        if submitting then return end
+        local creds = {
+            username = usernameBox and usernameBox.Text or nil,
+            password = passwordBox and (passwordBox.GetReal and passwordBox.GetReal() or passwordBox.Text) or nil,
+            key = keyBox and keyBox.Text or nil,
+        }
+        if wantUser and (not creds.username or creds.username == "") then return setError("Enter a username.") end
+        if wantPass and (not creds.password or creds.password == "") then return setError("Enter a password.") end
+        if wantKey and (not creds.key or creds.key == "") then return setError("Enter a key.") end
+
+        setError(nil)
+        setSubmitting(true)
+
+        local function finish(success, message)
+            if not gui.Parent then return end
+            setSubmitting(false)
+            if success then
+                pcall(function()
+                    if cfg.remember and rememberOn then
+                        if not isfolder or not isfolder(library.directory) then pcall(makefolder, library.directory) end
+                        writefile(cfg.saveFile, http_service:JSONEncode({
+                            username = creds.username, password = creds.password, key = creds.key, remember = true,
+                        }))
+                    elseif cfg.remember and isfile and isfile(cfg.saveFile) then
+                        delfile(cfg.saveFile)
+                    end
+                end)
+                library:tween(card, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.25)
+                task.delay(0.25, function()
+                    gui:Destroy()
+                    pcall(cfg.onSuccess, creds)
+                end)
+            else
+                setError(message or "Something went wrong.")
+            end
+        end
+
+        if type(cfg.onSubmit) == "function" then
+            task.spawn(function()
+                local ok, err = pcall(cfg.onSubmit, creds, finish)
+                if not ok then finish(false, tostring(err)) end
+            end)
+        else
+            finish(true)
+        end
+    end
+
+    signInBtn.MouseButton1Click:Connect(submit)
+    for _, box in ipairs({ usernameBox, passwordBox, keyBox }) do
+        if box then
+            box.FocusLost:Connect(function(enterPressed)
+                if enterPressed then submit() end
+            end)
+        end
+    end
+
+    card.Size = dim2(0, cardW, 0, 0)
+    card.BackgroundTransparency = 1
+    library:tween(card, { Size = dim2(0, cardW, 0, cardH), BackgroundTransparency = 0 }, Enum.EasingStyle.Quint, 0.35)
+
+    return {
+        gui = gui,
+        close = function() pcall(function() gui:Destroy() end) end,
+    }
 end
 
 
