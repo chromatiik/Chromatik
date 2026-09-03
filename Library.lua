@@ -229,7 +229,7 @@ do
     local Medium = withTimeout(function()
         return Register_Font("Medium", 200, "Normal", {
             Id = "Medium.ttf",
-            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"), -- Upload the font to your own github incase of deletion.
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-Medium.ttf"),
 
         })
     end, 4)
@@ -240,7 +240,7 @@ do
     local SemiBold = withTimeout(function()
         return Register_Font("SemiBold", 200, "Normal", {
             Id = "SemiBold.ttf",
-            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"), -- Upload the font to your own github incase of deletion.
+            Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/Inter_28pt-SemiBold.ttf"),
 
         })
     end, 4)
@@ -720,7 +720,7 @@ function library:window(properties)
 
         library:create("UICorner", {
             Parent = items["main"],
-            CornerRadius = dim(0, 10),
+            CornerRadius = dim(0, 14),
         })
 
         library:create("UIStroke", {
@@ -767,18 +767,18 @@ function library:window(properties)
         cfg.button_holder = items["button_holder"]
 
         items["search_btn"] = library:create("TextButton", {
-            Parent = items["side_frame"],
+            Parent = items["main"],
             Text = "",
             TextXAlignment = Enum.TextXAlignment.Left,
             FontFace = fonts.font,
-            TextSize = 14,
+            TextSize = 13,
             TextColor3 = themes.preset.dimtext,
             AutoButtonColor = false,
             BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 10, 1, -40),
-            Size = dim2(1, -20, 0, 28),
+            Position = dim2(0, 48, 0, 12),
+            Size = dim2(0, 160, 0, 32),
             BorderSizePixel = 0,
-            ZIndex = 8,
+            ZIndex = 15,
         })
         library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
@@ -804,33 +804,31 @@ function library:window(properties)
 
         library:create("UIListLayout", {
             Parent = items["button_holder"],
-            Padding = dim(0, 5),
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = dim(0, 6),
             SortOrder = Enum.SortOrder.LayoutOrder,
-        })
-
-        library:create("UIPadding", {
-            PaddingTop = dim(0, 16),
-            PaddingBottom = dim(0, 36),
-            Parent = items["button_holder"],
-            PaddingRight = dim(0, 11),
-            PaddingLeft = dim(0, 10),
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
         })
 
         items["title"] = library:create("Frame", {
-            Parent = items["side_frame"],
+            Parent = items["main"],
             BackgroundTransparency = 1,
-            Size = dim2(1, 0, 0, 70),
+            Position = dim2(0, 10, 0, 10),
+            Size = dim2(0, 36, 0, 36),
             BorderSizePixel = 0,
+            ZIndex = 15,
         })
         items["title_icon"] = library:create("ImageLabel", {
             Parent = items["title"],
             AnchorPoint = vec2(0.5, 0.5),
             Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 48, 0, 48),
+            Size = dim2(0, 26, 0, 26),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
-            ImageColor3 = rgb(255, 255, 255),
+            ImageColor3 = themes.preset.accent,
             ScaleType = Enum.ScaleType.Fit,
+            ZIndex = 16,
         })
         pcall(function()
             if ApplyIcon then ApplyIcon(items["title_icon"], cfg.icon or "layers") end
@@ -867,7 +865,7 @@ function library:window(properties)
         local socialLinks = {
             { keys = { "discord", "Discord" }, icon = "message-circle" },
             { keys = { "telegram", "Telegram" }, icon = "send" },
-            { keys = { "youtube", "Youtube", "YouTube" }, icon = "play" },
+            { keys = { "youtube", "Youtube", "YouTube" }, icon = "youtube" },
         }
         local socialOffset = 14
         for i = #socialLinks, 1, -1 do
@@ -1678,11 +1676,12 @@ function library:tab(properties)
             if selected_tab[4] ~= items["tab_holder"] then
                 self.items["global_fade"].BackgroundTransparency = 0
                 library:tween(self.items["global_fade"], { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.4)
-                selected_tab[4].Size = dim2(1, -216, 1, -101)
+                selected_tab[4].Size = dim2(1, -24, 1, -72)
             end
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
             library:tween(selected_tab[3], { TextColor3 = themes.preset.dimtext, TextTransparency = 1 })
+            pcall(function() selected_tab[3].Visible = false end)
             selected_tab[4].Visible = false
             selected_tab[4].Parent = library["cache"]
             selected_tab[5].Visible = false
@@ -1691,8 +1690,9 @@ function library:tab(properties)
 
         library:tween(items["button"], { BackgroundTransparency = 0 })
         library:tween(items["icon"], { ImageColor3 = rgb(255, 255, 255) })
-        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 0 }, Enum.EasingStyle.Quad, 0.25)
-        library:tween(items["tab_holder"], { Size = dim2(1, -196, 1, -81) }, Enum.EasingStyle.Quad, 0.4)
+        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255), TextTransparency = 0 }, Enum.EasingStyle.Quad, 0.22)
+        items["name"].Visible = true
+        library:tween(items["tab_holder"], { Size = dim2(1, -24, 1, -72) }, Enum.EasingStyle.Quad, 0.35)
 
         items["tab_holder"].Visible = true
         items["tab_holder"].Parent = self.items["main"]
