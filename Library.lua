@@ -1,4 +1,4 @@
--- EMBLEM_BUILD 2026-09-03-i | Chromatik base
+-- EMBLEM_BUILD 2026-09-03-j | Chromatik base
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -68,7 +68,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.5.2-emblem",
+    version = "1.5.3-emblem",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -734,11 +734,30 @@ function library:window(properties)
             CornerRadius = dim(0, 10),
         })
 
-        library:create("UIStroke", {
-            Color = rgb(23, 23, 29),
+        local mainStroke = library:create("UIStroke", {
+            Color = rgb(40, 55, 44),
             Parent = items["main"],
+            Thickness = 1.25,
+            Transparency = 0.15,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
+        library:apply_theme(mainStroke, "accent", "Color")
+        -- soft outer halo
+        local halo = library:create("Frame", {
+            Parent = items["main"],
+            AnchorPoint = vec2(0.5, 0.5),
+            Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(1, 18, 1, 18),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 0,
+        })
+        library:create("UICorner", { Parent = halo, CornerRadius = dim(0, 14) })
+        local haloStroke = library:create("UIStroke", {
+            Parent = halo, Color = themes.preset.accent, Thickness = 6,
+            Transparency = 0.88, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
+        library:apply_theme(haloStroke, "accent", "Color")
 
         items["side_frame"] = library:create("Frame", {
             Parent = items["main"],
@@ -777,17 +796,32 @@ function library:window(properties)
         })
         cfg.button_holder = items["button_holder"]
 
-        items["search_btn"] = library:create("TextButton", {
+        items["menu_logo"] = library:create("ImageLabel", {
             Parent = items["main"],
-            Text = "",
-            TextXAlignment = Enum.TextXAlignment.Left,
-            FontFace = fonts.font,
-            TextSize = 13,
-            TextColor3 = themes.preset.dimtext,
-            AutoButtonColor = false,
+            Position = dim2(0, 14, 0, 10),
+            Size = dim2(0, 32, 0, 32),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ImageColor3 = rgb(255, 255, 255),
+            ScaleType = Enum.ScaleType.Fit,
+            ZIndex = 22,
+        })
+        library._logoTargets = library._logoTargets or {}
+        table.insert(library._logoTargets, items["menu_logo"])
+        pcall(function()
+            library.LoadEmblemLogo()
+            if not library._logoAsset then
+                -- default green mark
+                items["menu_logo"].Image = "rbxassetid://6031097226"
+                items["menu_logo"].ImageColor3 = themes.preset.accent
+            end
+        end)
+
+        items["search_btn"] = library:create("Frame", {
+            Parent = items["main"],
             BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 84, 0, 12),
-            Size = dim2(0, 240, 0, 32),
+            Position = dim2(0, 54, 0, 12),
+            Size = dim2(0, 260, 0, 32),
             BorderSizePixel = 0,
             ZIndex = 20,
         })
@@ -805,6 +839,14 @@ function library:window(properties)
             Parent = items["search_btn"], BackgroundTransparency = 1,
             Position = dim2(0, 30, 0, 0), Size = dim2(1, -36, 1, 0),
             ZIndex = 22,
+            PlaceholderText = "Search...",
+            PlaceholderColor3 = themes.preset.dimtext,
+            Text = "",
+            TextColor3 = themes.preset.text,
+            ClearTextOnFocus = false,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            FontFace = fonts.font,
+            TextSize = 13,
             FontFace = fonts.font, Text = "", PlaceholderText = "Search...",
             PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
             TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
@@ -821,8 +863,12 @@ function library:window(properties)
                 library.OpenSearch()
             end
         end)
-        items["search_btn"].MouseButton1Click:Connect(function()
-            pcall(function() searchBox:CaptureFocus() end)
+        pcall(function()
+            items["search_btn"].InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    searchBox:CaptureFocus()
+                end
+            end)
         end)
 
 
@@ -877,7 +923,7 @@ function library:window(properties)
             BackgroundTransparency = 1,
             Position = dim2(0, 72, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -196, 0, 56),
+            Size = dim2(1, -92, 0, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1076,9 +1122,9 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 56),
+            Position = dim2(0, 80, 0, 52),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -196, 1, -81),
+            Size = dim2(1, -92, 1, -60),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 2,
@@ -1173,10 +1219,14 @@ function library:window(properties)
             local dic = library:create("ImageLabel", {
                 Parent = dbtn, BackgroundTransparency = 1,
                 AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-                Size = dim2(0, 14, 0, 14), Image = "rbxassetid://120249220493681",
+                Size = dim2(0, 15, 0, 15), Image = "",
                 ZIndex = 26,
-                ImageColor3 = themes.preset.dimicon, BorderSizePixel = 0, ZIndex = 21,
+                ImageColor3 = themes.preset.dimicon, BorderSizePixel = 0,
             })
+            pcall(function() ApplyIcon(dic, "message-circle") end)
+            if not dic.Image or dic.Image == "" or dic.Image == "rbxassetid://0" then
+                dic.Image = "rbxassetid://6031075938" -- fallback chat icon
+            end
             dbtn.MouseButton1Click:Connect(function()
                 pcall(function() if setclipboard then setclipboard(tostring(discordUrl)) end end)
                 pcall(function()
@@ -1372,34 +1422,17 @@ function library:window(properties)
             bool = not library["items"].Enabled
         end
         bool = bool and true or false
-        library["items"].Enabled = true
+        library["items"].Enabled = bool
+        pcall(function()
+            if items["main"] then
+                items["main"].Visible = bool
+                items["main"].BackgroundTransparency = 0
+            end
+        end)
         pcall(function()
             shared = shared or {}
             shared._hostMenuOpen = bool
         end)
-        local main = items["main"]
-        if not main then
-            library["items"].Enabled = bool
-            return
-        end
-        main.Visible = true
-        if bool then
-            main.BackgroundTransparency = 1
-            library:tween(main, { BackgroundTransparency = 0 }, Enum.EasingStyle.Quad, 0.12)
-            for _, d in ipairs(main:GetDescendants()) do
-                if d:IsA("GuiObject") and d:GetAttribute("_fadeSkip") then continue end
-            end
-        else
-            library:tween(main, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.12)
-            task.delay(0.13, function()
-                if library["items"] and not shared._hostMenuOpen then
-                    library["items"].Enabled = false
-                    if main then main.Visible = false main.BackgroundTransparency = 0 end
-                end
-            end)
-        end
-        library["items"].Enabled = bool or true -- keep SG enabled during fade-out
-        if bool then library["items"].Enabled = true end
     end
 
     library._menuMain = items["main"]
@@ -3597,26 +3630,30 @@ function library:keybind(options)
     }
 
     local items = cfg.items
+    local keybindParent = (self.items and (self.items["right_components"] or self.items["elements"])) or nil
+    local inlineOnToggle = self.items and self.items["right_components"] ~= nil
     items["keybind_element"] = library:create("TextButton", {
         FontFace = fonts.font,
         TextColor3 = rgb(0, 0, 0),
         BorderColor3 = rgb(0, 0, 0),
         Text = "",
-        Parent = self.items["elements"],
+        Parent = keybindParent,
         Name = "\0",
         BackgroundTransparency = 1,
-        Size = dim2(1, 0, 0, 0),
+        Size = inlineOnToggle and dim2(0, 48, 0, 18) or dim2(1, 0, 0, 0),
         BorderSizePixel = 0,
-        AutomaticSize = Enum.AutomaticSize.Y,
-        TextSize = 14,
+        AutomaticSize = inlineOnToggle and Enum.AutomaticSize.None or Enum.AutomaticSize.Y,
+        TextSize = 12,
         BackgroundColor3 = rgb(255, 255, 255),
+        LayoutOrder = 5,
+        ZIndex = 8,
     })
 
     items["name"] = library:create("TextLabel", {
         FontFace = fonts.font,
         TextColor3 = themes.preset.text,
         BorderColor3 = rgb(0, 0, 0),
-        Text = cfg.name,
+        Text = cfg.name or "",
         Parent = items["keybind_element"],
         Name = "\0",
         Size = dim2(1, 0, 0, 0),
@@ -3626,6 +3663,7 @@ function library:keybind(options)
         AutomaticSize = Enum.AutomaticSize.XY,
         TextSize = 16,
         BackgroundColor3 = rgb(255, 255, 255),
+        Visible = not inlineOnToggle,
     })
 
     library:create("UIPadding", {
@@ -3633,6 +3671,11 @@ function library:keybind(options)
         PaddingRight = dim(0, 5),
         PaddingLeft = dim(0, 5),
     })
+    if inlineOnToggle then
+        -- compact pill on the toggle row
+        items["keybind_element"].Size = dim2(0, 52, 1, 0)
+        items["keybind_element"].AutomaticSize = Enum.AutomaticSize.None
+    end
 
     items["right_components"] = library:create("Frame", {
         Parent = items["keybind_element"],
@@ -7181,11 +7224,21 @@ function library:Login(options)
             ClipsDescendants = true, ZIndex = 80,
         })
         library:create("UICorner", { Parent = card, CornerRadius = dim(0, 14) })
-        -- same outline style as main menu (subtle dark stroke, not a thick glow border)
-        library:create("UIStroke", {
-            Parent = card, Color = rgb(30, 30, 36), Thickness = 1,
-            Transparency = 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        local loginStroke = library:create("UIStroke", {
+            Parent = card, Color = rgb(40, 55, 44), Thickness = 1.25,
+            Transparency = 0.15, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
+        library:apply_theme(loginStroke, "accent", "Color")
+        local loginHalo = library:create("Frame", {
+            Parent = card, AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(1, 18, 1, 18), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 0,
+        })
+        library:create("UICorner", { Parent = loginHalo, CornerRadius = dim(0, 14) })
+        local loginHaloStroke = library:create("UIStroke", {
+            Parent = loginHalo, Color = themes.preset.accent, Thickness = 6,
+            Transparency = 0.88, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
+        library:apply_theme(loginHaloStroke, "accent", "Color")
     else
         return
     end
