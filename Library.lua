@@ -787,11 +787,11 @@ function library:window(properties)
             Parent = items["main"],
             BackgroundColor3 = themes.preset.element,
             Position = dim2(0, 80, 0, 12),
-            Size = dim2(0, 280, 0, 32),
+            Size = dim2(0, 200, 0, 30),
             BorderSizePixel = 0,
             ZIndex = 20,
         })
-        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
+        library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 8) })
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
         local sic = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
@@ -887,15 +887,39 @@ function library:window(properties)
             Position = dim2(1, -54, 0.5, 0), Size = dim2(0, 28, 0, 28), ZIndex = 6, BorderSizePixel = 0,
         })
         library:create("UICorner", { Parent = items["discord_btn"], CornerRadius = dim(0, 7) })
-        local _dIcon = library:create("ImageLabel", {
-            Parent = items["discord_btn"], BackgroundTransparency = 1,
-            AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 15, 0, 15), BorderSizePixel = 0, ZIndex = 7,
-            Image = "rbxassetid://120249220493681", ImageColor3 = rgb(255, 255, 255),
-        })
-        pcall(function()
-            if ApplyIcon then ApplyIcon(_dIcon, "message-circle") end
-        end)
+        do
+            local dImg = library:create("ImageLabel", {
+                Parent = items["discord_btn"], BackgroundTransparency = 1,
+                AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+                Size = dim2(0, 16, 0, 16), BorderSizePixel = 0, ZIndex = 7,
+                ImageColor3 = rgb(255, 255, 255),
+                Image = "rbxassetid://120249220493681",
+            })
+            -- Prefer a real Discord logo file (not Lucide)
+            task.spawn(function()
+                pcall(function()
+                    local urls = {
+                        "https://cdn.simpleicons.org/discord/5865F2",
+                        "https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png",
+                    }
+                    for _, url in ipairs(urls) do
+                        local ok, data = pcall(function() return game:HttpGet(url) end)
+                        if ok and type(data) == "string" and #data > 200 then
+                            pcall(function()
+                                if makefolder then makefolder(library.directory) end
+                                writefile(library.directory .. "/discord_icon.png", data)
+                                local id = getcustomasset(library.directory .. "/discord_icon.png")
+                                if id then
+                                    dImg.Image = id
+                                    dImg.ImageColor3 = rgb(255, 255, 255)
+                                end
+                            end)
+                            break
+                        end
+                    end
+                end)
+            end)
+        end
         items["discord_btn"].MouseButton1Click:Connect(function()
             local url = properties.Discord or properties.discord or "https://discord.gg/glacier"
             pcall(function() if setclipboard then setclipboard(tostring(url)) end end)
@@ -906,144 +930,238 @@ function library:window(properties)
 
         items["profile_btn"] = library:create("TextButton", {
             Parent = items["multi_holder"], Name = "\0", Text = "", AutoButtonColor = false,
-            BackgroundTransparency = 1, AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -14, 0.5, 0), Size = dim2(0, 32, 0, 32), ZIndex = 6, BorderSizePixel = 0,
+            BackgroundColor3 = themes.preset.element, AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -14, 0.5, 0), Size = dim2(0, 28, 0, 28), ZIndex = 6, BorderSizePixel = 0,
         })
+        library:create("UICorner", { Parent = items["profile_btn"], CornerRadius = dim(0, 7) })
         items["profile_avatar"] = library:create("ImageLabel", {
-            Parent = items["profile_btn"], Name = "\0", BackgroundColor3 = themes.preset.light,
-            Size = dim2(1, 0, 1, 0), BorderSizePixel = 0, ZIndex = 6,
+            Parent = items["profile_btn"], Name = "\0", BackgroundTransparency = 1,
+            AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 16, 0, 16), BorderSizePixel = 0, ZIndex = 7,
+            ImageColor3 = themes.preset.dimtext,
         })
-        library:create("UICorner", { Parent = items["profile_avatar"], CornerRadius = dim(1, 0) })
-
-        items["profile_ring"] = library:create("UIStroke", {
-            Parent = items["profile_avatar"], Color = themes.preset.accent, Thickness = 1.5,
-        })
-        library:apply_theme(items["profile_ring"], "accent", "Color")
-        task.spawn(function()
-            local ok, content = pcall(function()
-                return players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-            end)
-            if ok and content then items["profile_avatar"].Image = content end
-        end)
+        pcall(function() ApplyIcon(items["profile_avatar"], "settings") end)
+        if not items["profile_avatar"].Image or items["profile_avatar"].Image == "" or items["profile_avatar"].Image == "rbxassetid://0" then
+            items["profile_avatar"].Image = "rbxassetid://6031280882"
+        end
 
         local profileOpen = false
         local profilePopup = library:create("Frame", {
-            Parent = items["main"], Name = "\0", Size = dim2(0, 240, 0, 0),
+            Parent = items["main"], Name = "\0", Size = dim2(0, 210, 0, 0),
             BackgroundColor3 = themes.preset.section, BorderSizePixel = 0, Visible = false,
-            ZIndex = 80, ClipsDescendants = true, AnchorPoint = vec2(1, 0), Position = dim2(1, -10, 0, 56),
+            ZIndex = 80, ClipsDescendants = true, AnchorPoint = vec2(1, 0), Position = dim2(1, -10, 0, 52),
         })
         library:create("UICorner", { Parent = profilePopup, CornerRadius = dim(0, 10) })
+        library:create("UIStroke", {
+            Parent = profilePopup, Color = rgb(30, 30, 36), Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
 
-        local function rebuildProfile()
-            for _, ch in profilePopup:GetChildren() do
-                if not ch:IsA("UICorner") then ch:Destroy() end
+        local flyout = library:create("Frame", {
+            Parent = items["main"], Name = "\0", Size = dim2(0, 120, 0, 0),
+            BackgroundColor3 = themes.preset.section, BorderSizePixel = 0, Visible = false,
+            ZIndex = 85, ClipsDescendants = true, AnchorPoint = vec2(0, 0),
+        })
+        library:create("UICorner", { Parent = flyout, CornerRadius = dim(0, 8) })
+        library:create("UIStroke", {
+            Parent = flyout, Color = rgb(30, 30, 36), Thickness = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        })
+
+        local function clear_children(frame)
+            for _, ch in frame:GetChildren() do
+                if not ch:IsA("UICorner") and not ch:IsA("UIStroke") then
+                    ch:Destroy()
+                end
             end
-            local display = lp.DisplayName or lp.Name
-            local uname = "@" .. (lp.Name or "unknown")
-            local uid = tostring(lp.UserId or 0)
-            local age = "Unknown"
-            pcall(function() age = tostring(lp.AccountAge or 0) .. " days" end)
+        end
 
-            local bigAv = library:create("ImageLabel", {
-                Parent = profilePopup, BackgroundColor3 = themes.preset.light,
-                Position = dim2(0, 14, 0, 14), Size = dim2(0, 42, 0, 42),
-                BorderSizePixel = 0, Image = items["profile_avatar"].Image, ZIndex = 81,
-            })
-            library:create("UICorner", { Parent = bigAv, CornerRadius = dim(1, 0) })
-            local bigRing = library:create("UIStroke", { Parent = bigAv, Color = themes.preset.accent, Thickness = 1.5 })
-            library:apply_theme(bigRing, "accent", "Color")
+        local function hide_flyout()
+            flyout.Visible = false
+            clear_children(flyout)
+        end
 
-            library:create("TextLabel", {
-                Parent = profilePopup, FontFace = fonts.font, Text = display, TextSize = 15,
-                TextColor3 = themes.preset.text, BackgroundTransparency = 1,
-                Position = dim2(0, 66, 0, 16), Size = dim2(1, -80, 0, 18),
-                TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
-            })
-            library:create("TextLabel", {
-                Parent = profilePopup, FontFace = fonts.font, Text = uname, TextSize = 13,
-                TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-                Position = dim2(0, 66, 0, 36), Size = dim2(1, -80, 0, 16),
-                TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
-            })
-            local function infoRow(y, lab, val)
-                library:create("TextLabel", {
-                    Parent = profilePopup, FontFace = fonts.font, Text = lab, TextSize = 13,
-                    TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-                    Position = dim2(0, 14, 0, y), Size = dim2(0, 100, 0, 16),
-                    TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
+        local function show_flyout(anchor_y, options)
+            clear_children(flyout)
+            local y = 6
+            for _, opt in ipairs(options) do
+                local row = library:create("TextButton", {
+                    Parent = flyout, FontFace = fonts.font, Text = "", AutoButtonColor = false,
+                    BackgroundTransparency = 1, Position = dim2(0, 0, 0, y),
+                    Size = dim2(1, 0, 0, 26), BorderSizePixel = 0, ZIndex = 86,
+                })
+                local mark = library:create("TextLabel", {
+                    Parent = row, BackgroundTransparency = 1,
+                    Position = dim2(0, 10, 0, 0), Size = dim2(0, 16, 1, 0),
+                    Text = opt.selected and "✓" or "", TextSize = 12,
+                    TextColor3 = themes.preset.accent, FontFace = fonts.font, ZIndex = 87,
                 })
                 library:create("TextLabel", {
-                    Parent = profilePopup, FontFace = fonts.font, Text = val, TextSize = 13,
-                    TextColor3 = themes.preset.text, BackgroundTransparency = 1,
-                    Position = dim2(0, 110, 0, y), Size = dim2(1, -124, 0, 16),
-                    TextXAlignment = Enum.TextXAlignment.Right, BorderSizePixel = 0, ZIndex = 81,
+                    Parent = row, BackgroundTransparency = 1,
+                    Position = dim2(0, 28, 0, 0), Size = dim2(1, -36, 1, 0),
+                    Text = opt.text, TextSize = 13, TextColor3 = themes.preset.text,
+                    FontFace = fonts.font, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 87,
                 })
+                row.MouseButton1Click:Connect(function()
+                    pcall(opt.callback)
+                    hide_flyout()
+                    if profileOpen then rebuildProfile() end
+                end)
+                y = y + 26
             end
-            infoRow(68, "User ID", uid)
-            infoRow(90, "Account age", age)
+            flyout.Size = dim2(0, 120, 0, y + 6)
+            flyout.Position = dim2(1, -10 - 210 - 8, 0, 52 + anchor_y)
+            flyout.Visible = true
+        end
 
-            library:create("TextLabel", {
-                Parent = profilePopup, FontFace = fonts.font, Text = "Menu toggle", TextSize = 13,
-                TextColor3 = themes.preset.dimtext, BackgroundTransparency = 1,
-                Position = dim2(0, 14, 0, 118), Size = dim2(0, 100, 0, 16),
-                TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 81,
-            })
-            local currentKey = library.MenuKeybind or Enum.KeyCode.RightControl
-            local keyName = library.MenuKeyName or keys[currentKey] or (typeof(currentKey) == "EnumItem" and currentKey.Name) or "RCtrl"
-            local keyBox = library:create("TextButton", {
-                Parent = profilePopup, FontFace = fonts.font, Text = keyName, TextSize = 12,
-                TextColor3 = themes.preset.text, AutoButtonColor = false,
-                BackgroundColor3 = themes.preset.light,
-                Position = dim2(1, -70, 0, 114), Size = dim2(0, 56, 0, 22),
-                BorderSizePixel = 0, ZIndex = 81,
-            })
-            library:create("UICorner", { Parent = keyBox, CornerRadius = dim(0, 4) })
-            library.ProfileKeyBox = keyBox
-            local binding = false
-            keyBox.MouseButton1Click:Connect(function()
-                if binding then return end
-                binding = true
-                keyBox.Text = "..."
-                local conn
-                conn = uis.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.Keyboard then
-                        library.MenuKeybind = input.KeyCode
-                        local nm = keys[input.KeyCode] or input.KeyCode.Name
-                        keyBox.Text = nm
-                        if config_flags["menu_bind"] then
-                            pcall(function() config_flags["menu_bind"](input.KeyCode) end)
-                        end
-                        binding = false
-                        conn:Disconnect()
+        local hideWm = false
+        local hideNotifs = false
+        local hideKbl = false
+        local menuScale = 100
+        local styleName = "Crimson"
+        local styles = {
+            { "Evenesce", rgb(155, 150, 219) },
+            { "Crimson", rgb(200, 72, 78) },
+            { "Ocean", rgb(70, 140, 255) },
+            { "Emerald", rgb(80, 200, 120) },
+            { "Gold", rgb(230, 180, 60) },
+        }
+        local scales = { 50, 75, 100, 125, 150 }
+
+        local function apply_scale(pct)
+            menuScale = pct
+            local main = items["main"]
+            if not main then return end
+            local base = main:GetAttribute("_baseSize")
+            if not base then
+                main:SetAttribute("_baseW", main.Size.X.Offset)
+                main:SetAttribute("_baseH", main.Size.Y.Offset)
+                base = true
+            end
+            local bw = main:GetAttribute("_baseW") or 780
+            local bh = main:GetAttribute("_baseH") or 450
+            local s = pct / 100
+            main.Size = dim2(0, math.floor(bw * s + 0.5), 0, math.floor(bh * s + 0.5))
+        end
+
+        function rebuildProfile()
+            clear_children(profilePopup)
+            hide_flyout()
+            local y = 8
+
+            local function add_row(label, right_kind, extra)
+                local row = library:create("TextButton", {
+                    Parent = profilePopup, FontFace = fonts.font, Text = "", AutoButtonColor = false,
+                    BackgroundTransparency = 1, Position = dim2(0, 0, 0, y),
+                    Size = dim2(1, 0, 0, 32), BorderSizePixel = 0, ZIndex = 81,
+                })
+                library:create("TextLabel", {
+                    Parent = row, BackgroundTransparency = 1,
+                    Position = dim2(0, 14, 0, 0), Size = dim2(1, -50, 1, 0),
+                    Text = label, TextSize = 13, TextColor3 = themes.preset.text,
+                    FontFace = fonts.font, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 82,
+                })
+                if right_kind == "chevron" then
+                    library:create("TextLabel", {
+                        Parent = row, BackgroundTransparency = 1,
+                        Position = dim2(1, -28, 0, 0), Size = dim2(0, 20, 1, 0),
+                        Text = "›", TextSize = 16, TextColor3 = themes.preset.dimtext,
+                        FontFace = fonts.font, ZIndex = 82,
+                    })
+                elseif right_kind == "check" then
+                    local box = library:create("Frame", {
+                        Parent = row, AnchorPoint = vec2(1, 0.5), Position = dim2(1, -14, 0.5, 0),
+                        Size = dim2(0, 16, 0, 16), BackgroundColor3 = extra and themes.preset.accent or rgb(67, 67, 68),
+                        BorderSizePixel = 0, ZIndex = 82,
+                    })
+                    library:create("UICorner", { Parent = box, CornerRadius = dim(0, 4) })
+                    if extra then
+                        local tick = library:create("ImageLabel", {
+                            Parent = box, BackgroundTransparency = 1, Size = dim2(1, 2, 1, 2),
+                            Position = dim2(0, -1, 0, 0), Image = "rbxassetid://111862698467575",
+                            ImageTransparency = 0, BorderSizePixel = 0, ZIndex = 83,
+                        })
+                    end
+                end
+                y = y + 32
+                return row
+            end
+
+            local scaleRow = add_row("Menu Scale", "chevron")
+            scaleRow.MouseButton1Click:Connect(function()
+                local opts = {}
+                for _, pct in ipairs(scales) do
+                    table.insert(opts, {
+                        text = tostring(pct) .. "%",
+                        selected = menuScale == pct,
+                        callback = function() apply_scale(pct) end,
+                    })
+                end
+                show_flyout(8, opts)
+            end)
+
+            local styleRow = add_row("Style", "chevron")
+            styleRow.MouseButton1Click:Connect(function()
+                local opts = {}
+                for _, st in ipairs(styles) do
+                    local name, col = st[1], st[2]
+                    table.insert(opts, {
+                        text = name,
+                        selected = styleName == name,
+                        callback = function()
+                            styleName = name
+                            library:update_theme("accent", col)
+                        end,
+                    })
+                end
+                show_flyout(40, opts)
+            end)
+
+            local wmRow = add_row("Hide Watermark", "check", hideWm)
+            wmRow.MouseButton1Click:Connect(function()
+                hideWm = not hideWm
+                pcall(function()
+                    if library.watermark_gui then
+                        library.watermark_gui.Enabled = not hideWm
+                    end
+                    if library.WatermarkInstance and library.WatermarkInstance.SetVisible then
+                        library.WatermarkInstance.SetVisible(not hideWm)
                     end
                 end)
+                rebuildProfile()
             end)
 
-            local unloadBtn = library:create("TextButton", {
-                Parent = profilePopup, FontFace = fonts.font, Text = "Unload", TextSize = 14,
-                TextColor3 = themes.preset.text, AutoButtonColor = false,
-                BackgroundColor3 = themes.preset.light,
-                Position = dim2(0, 14, 0, 150), Size = dim2(1, -28, 0, 30),
-                BorderSizePixel = 0, ZIndex = 81,
-            })
-            library:create("UICorner", { Parent = unloadBtn, CornerRadius = dim(0, 6) })
-            unloadBtn.MouseButton1Click:Connect(function()
-                library:Notification({ Name = "Unloading", Description = "Chromatik is shutting down.", Icon = "power" })
-                task.delay(0.35, function() library:unload_menu() end)
+            local nfRow = add_row("Hide Notifications", "check", hideNotifs)
+            nfRow.MouseButton1Click:Connect(function()
+                hideNotifs = not hideNotifs
+                library._hideNotifications = hideNotifs
+                rebuildProfile()
             end)
+
+            local kbRow = add_row("Hide Keybind List", "check", hideKbl)
+            kbRow.MouseButton1Click:Connect(function()
+                hideKbl = not hideKbl
+                pcall(function()
+                    local k = library.KeybindListInstance
+                    if k and k.SetVisible then k.SetVisible(not hideKbl) end
+                end)
+                rebuildProfile()
+            end)
+
+            profilePopup.Size = dim2(0, 210, 0, y + 8)
         end
 
         local function setProfileVisible(bool)
             profileOpen = bool
             if bool then
                 rebuildProfile()
-                profilePopup.Size = dim2(0, 240, 0, 0)
                 profilePopup.BackgroundTransparency = 1
                 profilePopup.Visible = true
-                library:tween(profilePopup, { Size = dim2(0, 240, 0, 194), BackgroundTransparency = 0 }, Enum.EasingStyle.Quint, 0.22)
+                library:tween(profilePopup, { BackgroundTransparency = 0 }, Enum.EasingStyle.Quint, 0.18)
             else
-                library:tween(profilePopup, { Size = dim2(0, 240, 0, 0), BackgroundTransparency = 1 }, Enum.EasingStyle.Quint, 0.18)
-                task.delay(0.2, function()
+                hide_flyout()
+                library:tween(profilePopup, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quint, 0.15)
+                task.delay(0.16, function()
                     if not profileOpen then profilePopup.Visible = false end
                 end)
             end
@@ -1059,9 +1177,11 @@ function library:window(properties)
             local pos = input.Position
             local pAbs, pSize = profilePopup.AbsolutePosition, profilePopup.AbsoluteSize
             local bAbs, bSize = items["profile_btn"].AbsolutePosition, items["profile_btn"].AbsoluteSize
+            local fAbs, fSize = flyout.AbsolutePosition, flyout.AbsoluteSize
             local overPopup = pos.X >= pAbs.X and pos.X <= pAbs.X + pSize.X and pos.Y >= pAbs.Y and pos.Y <= pAbs.Y + pSize.Y
             local overBtn = pos.X >= bAbs.X and pos.X <= bAbs.X + bSize.X and pos.Y >= bAbs.Y and pos.Y <= bAbs.Y + bSize.Y
-            if not overPopup and not overBtn then setProfileVisible(false) end
+            local overFly = flyout.Visible and pos.X >= fAbs.X and pos.X <= fAbs.X + fSize.X and pos.Y >= fAbs.Y and pos.Y <= fAbs.Y + fSize.Y
+            if not overPopup and not overBtn and not overFly then setProfileVisible(false) end
         end)
 
         items["shadow"] = library:create("ImageLabel", {
@@ -1390,7 +1510,7 @@ function library:tab(properties)
             Name = "\0",
             Visible = false,
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 56),
+            Position = dim2(0, 76, 0, 52),
             BorderColor3 = rgb(0, 0, 0),
             Size = dim2(1, -208, 1, -64),
             BorderSizePixel = 0,
@@ -1415,6 +1535,7 @@ function library:tab(properties)
             BorderSizePixel = 0,
             TextSize = 16,
             BackgroundColor3 = themes.preset.accent,
+            BackgroundTransparency = 1,
         })
         library:create("UICorner", { Parent = items["button"], CornerRadius = dim(0, 10) })
 
@@ -1665,9 +1786,9 @@ function library:tab(properties)
         local selected_tab = self.selected_tab
         if selected_tab then
             if selected_tab[4] ~= items["tab_holder"] then
-                self.items["global_fade"].BackgroundTransparency = 0
-                library:tween(self.items["global_fade"], { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.4)
-                selected_tab[4].Size = dim2(1, -216, 1, -101)
+                self.items["global_fade"].BackgroundTransparency = 0.65
+                library:tween(self.items["global_fade"], { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.25)
+                selected_tab[4].Size = dim2(1, -88, 1, -60)
             end
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
@@ -1678,14 +1799,16 @@ function library:tab(properties)
             selected_tab[5].Parent = library["cache"]
         end
 
-        library:tween(items["button"], { BackgroundTransparency = 0 })
+        library:tween(items["button"], { BackgroundTransparency = 0.82 })
         library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
         library:tween(items["name"], { TextColor3 = rgb(255, 255, 255) })
         library._active_tab_icon = items["icon"]
-        library:tween(items["tab_holder"], { Size = dim2(1, -196, 1, -81) }, Enum.EasingStyle.Quad, 0.4)
+        library:tween(items["tab_holder"], { Size = dim2(1, -88, 1, -60) }, Enum.EasingStyle.Quad, 0.4)
 
         items["tab_holder"].Visible = true
-        items["tab_holder"].Parent = self.items["main"]
+        items["tab_holder"].Parent = self.items["global_fade"]
+        items["tab_holder"].Position = dim2(0, 0, 0, 0)
+        items["tab_holder"].Size = dim2(1, 0, 1, 0)
         items["tab_holder"].ScrollingEnabled = true
         task.defer(function() pcall(library.RefreshPageScroll) end)
         items["multi_section_button_holder"].Visible = (#cfg.tabs > 1)
@@ -2418,6 +2541,7 @@ function library:toggle(options)
     }
 
     flags[cfg.flag] = cfg.default
+    cfg.enabled = cfg.default
 
     local items = cfg.items
     items["toggle"] = library:create("TextButton", {
@@ -2497,60 +2621,76 @@ function library:toggle(options)
     })
 
 
-    items["switch"] = library:create("TextButton", {
+    -- Millenium-style checkbox (tick box)
+    items["toggle_button"] = library:create("TextButton", {
         FontFace = fonts.small,
         TextColor3 = rgb(0, 0, 0),
         BorderColor3 = rgb(0, 0, 0),
         Text = "",
+        LayoutOrder = 2,
         AutoButtonColor = false,
         AnchorPoint = vec2(1, 0),
         Parent = items["right_components"],
         Name = "\0",
         Position = dim2(1, 0, 0, 0),
-        Size = dim2(0, 36, 0, 18),
+        Size = dim2(0, 16, 0, 16),
         BorderSizePixel = 0,
         TextSize = 14,
-        BackgroundColor3 = rgb(33, 33, 35),
+        BackgroundColor3 = rgb(67, 67, 68),
     })
-
-
-
-
+    library:apply_theme(items["toggle_button"], "accent", "BackgroundColor3")
     library:create("UICorner", {
-        Parent = items["switch"],
-        CornerRadius = dim(0, 999),
+        Parent = items["toggle_button"],
+        CornerRadius = dim(0, 4),
     })
 
-    items["knob"] = library:create("Frame", {
-        Parent = items["switch"],
+    items["outline"] = library:create("Frame", {
+        Parent = items["toggle_button"],
+        Size = dim2(1, -2, 1, -2),
         Name = "\0",
-        Position = dim2(0, 2, 0, 2),
-        Size = dim2(0, 14, 0, 14),
+        BorderMode = Enum.BorderMode.Inset,
+        BorderColor3 = rgb(0, 0, 0),
+        Position = dim2(0, 1, 0, 1),
         BorderSizePixel = 0,
-        BackgroundColor3 = rgb(160, 160, 165),
+        BackgroundColor3 = rgb(22, 22, 24),
     })
-
+    library:apply_theme(items["outline"], "accent", "BackgroundColor3")
     library:create("UICorner", {
-        Parent = items["knob"],
-        CornerRadius = dim(0, 999),
+        Parent = items["outline"],
+        CornerRadius = dim(0, 4),
     })
 
+    items["tick"] = library:create("ImageLabel", {
+        ImageTransparency = 1,
+        BorderColor3 = rgb(0, 0, 0),
+        Image = "rbxassetid://111862698467575",
+        BackgroundTransparency = 1,
+        Position = dim2(0, -1, 0, 0),
+        Parent = items["outline"],
+        Size = dim2(1, 2, 1, 2),
+        BorderSizePixel = 0,
+        BackgroundColor3 = rgb(255, 255, 255),
+        ZIndex = 1,
+    })
 
     library._toggle_hooks = library._toggle_hooks or {}
 
     function cfg.set(bool)
         cfg.enabled = bool
         flags[cfg.flag] = bool
-        library:tween(items["switch"], {
-            BackgroundColor3 = bool and themes.preset.accent or rgb(33, 33, 35),
+        library:tween(items["tick"], {
+            Rotation = bool and 0 or 45,
+            ImageTransparency = bool and 0 or 1,
         })
-        library:tween(items["knob"], {
-            Position = bool and dim2(1, -16, 0, 2) or dim2(0, 2, 0, 2),
-            BackgroundColor3 = bool and rgb(255, 255, 255) or rgb(160, 160, 165),
+        library:tween(items["toggle_button"], {
+            BackgroundColor3 = bool and themes.preset.accent or rgb(67, 67, 68),
+        })
+        library:tween(items["outline"], {
+            BackgroundColor3 = bool and themes.preset.accent or rgb(22, 22, 24),
         })
 
         if bool then
-            library._toggle_hooks[cfg.flag] = items["switch"]
+            library._toggle_hooks[cfg.flag] = items["toggle_button"]
         else
             library._toggle_hooks[cfg.flag] = nil
         end
@@ -2559,7 +2699,7 @@ function library:toggle(options)
         end
     end
 
-    items["switch"].MouseButton1Click:Connect(function()
+    items["toggle_button"].MouseButton1Click:Connect(function()
         cfg.set(not cfg.enabled)
     end)
 
@@ -3573,11 +3713,28 @@ function library:keybind(options)
     })
     if inlineOnToggle and keybindParent then
         pcall(function()
-            items["keybind_holder"].Parent = keybindParent
-            items["keybind_holder"].Size = dim2(0, 48, 0, 18)
-            items["keybind_holder"].AutomaticSize = Enum.AutomaticSize.X
-            items["keybind_holder"].ZIndex = 11
             items["keybind_element"].Visible = false
+            items["keybind_element"].Size = dim2(0, 0, 0, 0)
+            items["keybind_holder"].Parent = keybindParent
+            items["keybind_holder"].Size = dim2(0, 0, 0, 18)
+            items["keybind_holder"].AutomaticSize = Enum.AutomaticSize.X
+            items["keybind_holder"].AnchorPoint = vec2(0, 0.5)
+            items["keybind_holder"].Position = dim2(0, 0, 0.5, 0)
+            items["keybind_holder"].ZIndex = 12
+            items["keybind_holder"].BackgroundColor3 = themes.preset.element
+            -- push toggle label right so pill sits beside it
+            if self.items and self.items["name"] then
+                local pad = self.items["name"]:FindFirstChildOfClass("UIPadding")
+                if pad then
+                    pad.PaddingLeft = dim(0, 56)
+                else
+                    library:create("UIPadding", {
+                        Parent = self.items["name"],
+                        PaddingLeft = dim(0, 56),
+                        PaddingRight = dim(0, 5),
+                    })
+                end
+            end
         end)
     end
 
