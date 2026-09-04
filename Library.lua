@@ -67,7 +67,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.6.1-glacier",
+    version = "1.7.0-evenesce",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -104,7 +104,7 @@ local notifications = library.notifications
 
 local themes = {
     preset = {
-        accent = rgb(200, 72, 78),
+        accent = rgb(155, 150, 219),
         background = rgb(14, 14, 16),
         section = rgb(22, 22, 24),
         element = rgb(25, 25, 29),
@@ -734,12 +734,13 @@ function library:window(properties)
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         })
 
+        library._menuMain = items["main"]
         items["side_frame"] = library:create("Frame", {
             Parent = items["main"],
-            BackgroundTransparency = 1,
+            BackgroundTransparency = 0,
             Name = "\0",
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 68, 1, 0),
+            Size = dim2(0, 168, 1, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ClipsDescendants = true,
@@ -759,11 +760,9 @@ function library:window(properties)
             Parent = items["side_frame"],
             Name = "\0",
             BackgroundTransparency = 1,
-            AnchorPoint = vec2(0, 0.5),
-            Position = dim2(0, 0, 0.5, 0),
+            Position = dim2(0, 0, 0, 100),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 0, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
+            Size = dim2(1, 0, 1, -110),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             CanvasSize = dim2(0, 0, 0, 0),
             ScrollBarThickness = 0,
@@ -775,23 +774,25 @@ function library:window(properties)
         library:create("UIListLayout", {
             Parent = items["button_holder"],
             FillDirection = Enum.FillDirection.Vertical,
-            HorizontalAlignment = Enum.HorizontalAlignment.Center,
-            VerticalAlignment = Enum.VerticalAlignment.Center,
-            Padding = dim(0, 8),
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Top,
+            Padding = dim(0, 2),
             SortOrder = Enum.SortOrder.LayoutOrder,
         })
         library:create("UIPadding", {
             Parent = items["button_holder"],
             PaddingTop = dim(0, 4),
             PaddingBottom = dim(0, 4),
+            PaddingLeft = dim(0, 8),
+            PaddingRight = dim(0, 8),
         })
         cfg.button_holder = items["button_holder"]
 
         items["search_btn"] = library:create("Frame", {
-            Parent = items["main"],
+            Parent = items["side_frame"],
             BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 80, 0, 12),
-            Size = dim2(0, 200, 0, 30),
+            Position = dim2(0, 12, 0, 56),
+            Size = dim2(1, -24, 0, 32),
             BorderSizePixel = 0,
             ZIndex = 20,
         })
@@ -873,13 +874,54 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 72, 0, 0),
+            Position = dim2(0, 176, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -80, 0, 48),
+            Size = dim2(1, -184, 0, 48),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
         cfg.multi_holder = items["multi_holder"]
+
+        -- Evenesce breadcrumbs
+        items["breadcrumb"] = library:create("TextLabel", {
+            Parent = items["multi_holder"],
+            BackgroundTransparency = 1,
+            Position = dim2(0, 12, 0, 6),
+            Size = dim2(0.5, -20, 0, 16),
+            FontFace = fonts.font,
+            Text = "",
+            TextSize = 12,
+            TextColor3 = themes.preset.dimtext,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BorderSizePixel = 0,
+            ZIndex = 5,
+        })
+        items["subtab_dropdown"] = library:create("TextButton", {
+            Parent = items["multi_holder"],
+            BackgroundColor3 = themes.preset.element,
+            Position = dim2(0, 12, 0, 22),
+            Size = dim2(0, 140, 0, 22),
+            Text = "",
+            AutoButtonColor = false,
+            BorderSizePixel = 0,
+            ZIndex = 5,
+        })
+        library:create("UICorner", { Parent = items["subtab_dropdown"], CornerRadius = dim(0, 6) })
+        local folderIcon = library:create("ImageLabel", {
+            Parent = items["subtab_dropdown"], BackgroundTransparency = 1,
+            Position = dim2(0, 6, 0.5, -7), Size = dim2(0, 14, 0, 14),
+            ImageColor3 = themes.preset.dimtext, BorderSizePixel = 0, ZIndex = 6,
+        })
+        pcall(function() ApplyIcon(folderIcon, "folder") end)
+        items["subtab_label"] = library:create("TextLabel", {
+            Parent = items["subtab_dropdown"], BackgroundTransparency = 1,
+            Position = dim2(0, 24, 0, 0), Size = dim2(1, -36, 1, 0),
+            FontFace = fonts.font, Text = "Main", TextSize = 12,
+            TextColor3 = themes.preset.text, TextXAlignment = Enum.TextXAlignment.Left,
+            BorderSizePixel = 0, ZIndex = 6,
+        })
+        library._breadcrumb = items["breadcrumb"]
+        library._subtab_label = items["subtab_label"]
 
         library:create("Frame", {
             AnchorPoint = vec2(0, 1),
@@ -935,6 +977,27 @@ function library:window(properties)
                     Icon = "link",
                 })
             end)
+        end)
+
+        items["config_btn"] = library:create("TextButton", {
+            Parent = items["multi_holder"], Name = "\0", Text = "", AutoButtonColor = false,
+            BackgroundTransparency = 1, AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -52, 0.5, 0), Size = dim2(0, 28, 0, 28), ZIndex = 6, BorderSizePixel = 0,
+        })
+        items["config_icon"] = library:create("ImageLabel", {
+            Parent = items["config_btn"], BackgroundTransparency = 1,
+            AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 16, 0, 16), ImageColor3 = themes.preset.dimicon, BorderSizePixel = 0, ZIndex = 7,
+        })
+        pcall(function() ApplyIcon(items["config_icon"], "folder") end)
+        items["config_btn"].MouseButton1Click:Connect(function()
+            pcall(function() library:OpenConfigPopup() end)
+        end)
+        items["config_btn"].MouseEnter:Connect(function()
+            pcall(function() items["config_icon"].ImageColor3 = themes.preset.text end)
+        end)
+        items["config_btn"].MouseLeave:Connect(function()
+            pcall(function() items["config_icon"].ImageColor3 = themes.preset.dimicon end)
         end)
 
         items["profile_btn"] = library:create("TextButton", {
@@ -1245,9 +1308,9 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 72, 0, 48),
+            Position = dim2(0, 176, 0, 48),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -80, 1, -52),
+            Size = dim2(1, -184, 1, -52),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 2,
@@ -1570,23 +1633,35 @@ function library:tab(properties)
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             Name = "\0",
-            Size = dim2(0, 48, 0, 48),
+            Size = dim2(1, 0, 0, 36),
             BorderSizePixel = 0,
             TextSize = 16,
+            BackgroundColor3 = themes.preset.element,
+        })
+        library:create("UICorner", { Parent = items["button"], CornerRadius = dim(0, 8) })
+
+        -- Evenesce-style accent nub
+        items["accent_nub"] = library:create("Frame", {
+            Parent = items["button"],
             BackgroundColor3 = themes.preset.accent,
             BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = dim2(0, 3, 0, 18),
+            Position = dim2(0, 0, 0.5, -9),
+            ZIndex = 3,
         })
-        library:create("UICorner", { Parent = items["button"], CornerRadius = dim(0, 12) })
+        library:create("UICorner", { Parent = items["accent_nub"], CornerRadius = dim(0, 2) })
+        library:apply_theme(items["accent_nub"], "accent", "BackgroundColor3")
 
         items["icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.dimicon,
             BorderColor3 = rgb(0, 0, 0),
             Parent = items["button"],
-            AnchorPoint = vec2(0.5, 0.5),
+            AnchorPoint = vec2(0, 0.5),
             BackgroundTransparency = 1,
-            Position = dim2(0.5, 0, 0.5, 0),
+            Position = dim2(0, 14, 0.5, 0),
             Name = "\0",
-            Size = dim2(0, 22, 0, 22),
+            Size = dim2(0, 18, 0, 18),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1597,15 +1672,17 @@ function library:tab(properties)
             FontFace = fonts.font,
             TextColor3 = themes.preset.dimtext,
             BorderColor3 = rgb(0, 0, 0),
-            Text = "",
+            Text = cfg.name,
             Parent = items["button"],
             Name = "\0",
-            Size = dim2(0, 0, 0, 0),
-            Position = dim2(0, 0, 0, 0),
+            Size = dim2(1, -48, 1, 0),
+            Position = dim2(0, 40, 0, 0),
             BackgroundTransparency = 1,
-            Visible = false,
-            TextTransparency = 1,
+            Visible = true,
+            TextTransparency = 0,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextSize = 14,
             BorderSizePixel = 0,
             AutomaticSize = Enum.AutomaticSize.X,
             TextSize = 16,
@@ -1832,16 +1909,37 @@ function library:tab(properties)
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
             library:tween(selected_tab[3], { TextColor3 = themes.preset.dimtext })
+            pcall(function()
+                local nub = selected_tab[1]:FindFirstChild("accent_nub") or selected_tab[1]:FindFirstChildWhichIsA("Frame")
+                -- hide nubs on old button
+                for _, ch in ipairs(selected_tab[1]:GetChildren()) do
+                    if ch:IsA("Frame") and ch.Size.X.Offset == 3 then
+                        library:tween(ch, { BackgroundTransparency = 1 })
+                    end
+                end
+            end)
             selected_tab[4].Visible = false
             selected_tab[4].Parent = library["cache"]
             selected_tab[5].Visible = false
             selected_tab[5].Parent = library["cache"]
         end
 
-        library:tween(items["button"], { BackgroundTransparency = 1 })
+        library:tween(items["button"], { BackgroundTransparency = 0.5, BackgroundColor3 = themes.preset.element })
         library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
-        library:tween(items["name"], { TextColor3 = rgb(255, 255, 255) })
+        library:tween(items["name"], { TextColor3 = themes.preset.text })
+        if items["accent_nub"] then
+            library:tween(items["accent_nub"], { BackgroundTransparency = 0 })
+        end
         library._active_tab_icon = items["icon"]
+        pcall(function()
+            if library._breadcrumb then
+                library._breadcrumb.Text = tostring(cfg.name or "")
+            end
+            if library._subtab_label then
+                local sub = (cfg.tabs and cfg.tabs[1]) or "Main"
+                library._subtab_label.Text = tostring(sub)
+            end
+        end)
         items["tab_holder"].Size = dim2(1, 0, 1, 0)
 
         items["tab_holder"].Visible = true
@@ -2431,8 +2529,23 @@ function library:section(properties)
         })
         library:create("UIPadding", {
             Parent = items["inline"],
-            PaddingTop = dim(0, 36),
+            PaddingTop = dim(0, 28),
             PaddingBottom = dim(0, 8),
+        })
+
+        -- Floating section title (Evenesce)
+        items["float_title"] = library:create("TextLabel", {
+            Parent = items["outline"],
+            BackgroundTransparency = 1,
+            Position = dim2(0, 12, 0, 6),
+            Size = dim2(1, -24, 0, 18),
+            FontFace = fonts.font,
+            Text = cfg.name,
+            TextSize = 13,
+            TextColor3 = themes.preset.dimtext,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BorderSizePixel = 0,
+            ZIndex = 5,
         })
 
         items["scrolling"] = library:create("Frame", {
@@ -2479,7 +2592,8 @@ function library:section(properties)
             Parent = items["outline"],
             Name = "\0",
             Position = dim2(0, 1, 0, 1),
-            Size = dim2(1, -2, 0, 35),
+            Size = dim2(1, -2, 0, 0),
+            Visible = false,
             BorderSizePixel = 0,
             TextSize = 16,
             BackgroundColor3 = rgb(19, 19, 21),
@@ -2647,20 +2761,21 @@ function library:toggle(options)
         Text = cfg.name,
         Parent = items["toggle"],
         Name = "\0",
-        Size = dim2(1, -46, 0, 0),
+        Size = dim2(1, -50, 0, 0),
+        Position = dim2(0, 26, 0, 0),
         BackgroundTransparency = 1,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextWrapped = true,
         BorderSizePixel = 0,
         AutomaticSize = Enum.AutomaticSize.Y,
-        TextSize = 16,
+        TextSize = 14,
         BackgroundColor3 = rgb(255, 255, 255),
     })
 
     library:create("UIPadding", {
         Parent = items["name"],
         PaddingRight = dim(0, 5),
-        PaddingLeft = dim(0, 5),
+        PaddingLeft = dim(0, 0),
     })
 
     items["right_components"] = library:create("Frame", {
@@ -2688,13 +2803,13 @@ function library:toggle(options)
         TextColor3 = rgb(0, 0, 0),
         BorderColor3 = rgb(0, 0, 0),
         Text = "",
-        LayoutOrder = 2,
+        LayoutOrder = 0,
         AutoButtonColor = false,
-        AnchorPoint = vec2(1, 0),
-        Parent = items["right_components"],
+        AnchorPoint = vec2(0, 0.5),
+        Parent = items["left_components"],
         Name = "\0",
-        Position = dim2(1, 0, 0, 0),
-        Size = dim2(0, 20, 0, 20),
+        Position = dim2(0, 0, 0.5, 0),
+        Size = dim2(0, 18, 0, 18),
         BorderSizePixel = 0,
         TextSize = 14,
         BackgroundColor3 = rgb(67, 67, 68),
@@ -2766,10 +2881,108 @@ function library:toggle(options)
         cfg.set(not cfg.enabled)
     end)
 
+    -- Evenesce gear + chevron for nested options
+    items["opt_gear"] = library:create("ImageButton", {
+        Parent = items["right_components"],
+        BackgroundTransparency = 1,
+        Size = dim2(0, 16, 0, 16),
+        LayoutOrder = 3,
+        ImageColor3 = themes.preset.dimicon,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 5,
+    })
+    pcall(function() ApplyIcon(items["opt_gear"], "settings") end)
+
+    items["opt_chevron"] = library:create("ImageButton", {
+        Parent = items["right_components"],
+        BackgroundTransparency = 1,
+        Size = dim2(0, 14, 0, 14),
+        LayoutOrder = 4,
+        ImageColor3 = themes.preset.dimicon,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 5,
+    })
+    pcall(function() ApplyIcon(items["opt_chevron"], "chevron-right") end)
+
+    cfg._options_built = false
+    cfg._options_open = false
+    cfg._option_children = {}
+
+    function cfg:AddOptions(builder)
+        items["opt_gear"].Visible = true
+        items["opt_chevron"].Visible = true
+        cfg._options_builder = builder
+
+        local function open_panel()
+            if cfg._options_open and cfg._options_panel then
+                cfg._options_panel.Visible = false
+                cfg._options_open = false
+                return
+            end
+            if not cfg._options_built then
+                local panel = library:create("Frame", {
+                    Parent = library._menuMain or items["toggle"].Parent,
+                    BackgroundColor3 = themes.preset.section,
+                    BorderSizePixel = 0,
+                    Size = dim2(0, 220, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    ZIndex = 200,
+                    ClipsDescendants = false,
+                })
+                library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 8) })
+                library:create("UIStroke", { Parent = panel, Color = rgb(48,48,54), Thickness = 1 })
+                library:create("UIPadding", {
+                    Parent = panel,
+                    PaddingTop = dim(0, 8),
+                    PaddingBottom = dim(0, 8),
+                    PaddingLeft = dim(0, 10),
+                    PaddingRight = dim(0, 10),
+                })
+                local holder = library:create("Frame", {
+                    Parent = panel,
+                    BackgroundTransparency = 1,
+                    Size = dim2(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BorderSizePixel = 0,
+                })
+                library:create("UIListLayout", {
+                    Parent = holder,
+                    Padding = dim(0, 6),
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                })
+                -- temporary elements host for builder
+                local host = {
+                    items = { elements = holder, column = holder },
+                    size = 1,
+                }
+                setmetatable(host, library)
+                if type(cfg._options_builder) == "function" then
+                    pcall(cfg._options_builder, host)
+                end
+                cfg._options_panel = panel
+                cfg._options_built = true
+            end
+            local panel = cfg._options_panel
+            local abs = items["toggle"].AbsolutePosition
+            local size = items["toggle"].AbsoluteSize
+            local main = library._menuMain
+            local base = main and main.AbsolutePosition or Vector2.zero
+            panel.Position = dim2(0, abs.X - base.X + size.X - 220, 0, abs.Y - base.Y + size.Y + 4)
+            panel.Visible = true
+            cfg._options_open = true
+        end
+
+        items["opt_gear"].MouseButton1Click:Connect(open_panel)
+        items["opt_chevron"].MouseButton1Click:Connect(open_panel)
+        return cfg
+    end
+
     cfg.set(cfg.default)
     config_flags[cfg.flag] = cfg.set
     pcall(function()
-        library:RegisterSearchable(cfg.name, items["toggle"])
+        library:RegisterSearchable(cfg.name, items["toggle"], library._lastSidebarTab)
     end)
 
     return setmetatable(cfg, library)
@@ -2797,7 +3010,7 @@ function library:slider(options)
         Parent = self.items["elements"],
         Name = "\0",
         BackgroundTransparency = 1,
-        Size = dim2(1, 0, 0, 42),
+        Size = dim2(1, 0, 0, 38),
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         BackgroundColor3 = rgb(255, 255, 255),
@@ -2818,7 +3031,7 @@ function library:slider(options)
         TextWrapped = true,
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
-        TextSize = 15,
+        TextSize = 14,
         BackgroundColor3 = rgb(255, 255, 255),
     })
 
@@ -3851,9 +4064,13 @@ function library:keybind(options)
 
         cfg.callback(cfg.active)
 
-        local text = tostring(cfg.key) ~= "Enums" and (keys[cfg.key] or tostring(cfg.key):gsub("Enum.", "")) or nil
-        local __text = text and (tostring(text):gsub("KeyCode.", ""):gsub("UserInputType.", ""))
-        items["key"].Text = __text or "NONE"
+        local __text = "NONE"
+        if cfg.key and cfg.key ~= "NONE" and cfg.key ~= "" then
+            local text = keys[cfg.key] or tostring(cfg.key):gsub("Enum.", "")
+            __text = tostring(text):gsub("KeyCode.", ""):gsub("UserInputType.", "")
+            if __text == "" or __text == "nil" then __text = "NONE" end
+        end
+        items["key"].Text = __text
 
         flags[cfg.flag] = {
             mode = cfg.mode,
@@ -7636,6 +7853,275 @@ function library:BuildConfigPage(tab)
 
     show_info(nil)
     return true
+end
+
+
+
+function library:OpenConfigPopup()
+    if library._configPopup and library._configPopup.Parent then
+        library._configPopup:Destroy()
+        library._configPopup = nil
+        return
+    end
+
+    local main = library._menuMain
+    if not main then return end
+
+    local dir = (library.directory or "Glacier") .. "/configs"
+    pcall(function()
+        if makefolder then
+            makefolder(library.directory or "Glacier")
+            makefolder(dir)
+        end
+    end)
+
+    local function path_of(name)
+        return dir .. "/" .. tostring(name) .. ".json"
+    end
+
+    local function list_configs()
+        local names = {}
+        pcall(function()
+            if listfiles then
+                for _, f in ipairs(listfiles(dir)) do
+                    local n = tostring(f):match("([^/\\]+)%.json$")
+                    if n then table.insert(names, n) end
+                end
+            end
+        end)
+        table.sort(names)
+        return names
+    end
+
+    local gui = library:create("Frame", {
+        Parent = main,
+        Size = dim2(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ZIndex = 300,
+    })
+    library._configPopup = gui
+
+    local dimmer = library:create("TextButton", {
+        Parent = gui, Size = dim2(1, 0, 1, 0),
+        BackgroundColor3 = rgb(0, 0, 0), BackgroundTransparency = 0.55,
+        Text = "", AutoButtonColor = false, ZIndex = 300,
+    })
+    dimmer.MouseButton1Click:Connect(function()
+        gui:Destroy()
+        library._configPopup = nil
+    end)
+
+    local panel = library:create("Frame", {
+        Parent = gui,
+        AnchorPoint = vec2(0.5, 0.5),
+        Position = dim2(0.5, 0, 0.5, 0),
+        Size = dim2(0, 420, 0, 340),
+        BackgroundColor3 = themes.preset.background,
+        BorderSizePixel = 0,
+        ZIndex = 301,
+    })
+    library:create("UICorner", { Parent = panel, CornerRadius = dim(0, 12) })
+    library:create("UIStroke", { Parent = panel, Color = rgb(48, 48, 54), Thickness = 1 })
+
+    -- Left: list
+    local left = library:create("Frame", {
+        Parent = panel, BackgroundTransparency = 1,
+        Position = dim2(0, 12, 0, 12), Size = dim2(0, 180, 1, -24),
+        BorderSizePixel = 0, ZIndex = 302,
+    })
+
+    local title = library:create("TextLabel", {
+        Parent = left, BackgroundTransparency = 1,
+        Size = dim2(1, 0, 0, 20), FontFace = fonts.font,
+        Text = "Presets", TextSize = 14, TextColor3 = themes.preset.text,
+        TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 303,
+    })
+    pcall(function() ApplyIcon end)
+
+    local createBox = library:create("TextBox", {
+        Parent = left, BackgroundColor3 = themes.preset.element,
+        Position = dim2(0, 0, 0, 28), Size = dim2(1, -40, 0, 28),
+        FontFace = fonts.font, Text = "", PlaceholderText = "Create a new config...",
+        PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
+        TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+        ClearTextOnFocus = false, BorderSizePixel = 0, ZIndex = 303,
+    })
+    library:create("UICorner", { Parent = createBox, CornerRadius = dim(0, 6) })
+    library:create("UIPadding", { Parent = createBox, PaddingLeft = dim(0, 8) })
+
+    local createBtn = library:create("TextButton", {
+        Parent = left, BackgroundColor3 = themes.preset.accent,
+        Position = dim2(1, -36, 0, 28), Size = dim2(0, 32, 0, 28),
+        Text = "+", TextColor3 = rgb(255,255,255), FontFace = fonts.font,
+        TextSize = 18, AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 303,
+    })
+    library:create("UICorner", { Parent = createBtn, CornerRadius = dim(0, 6) })
+
+    local list = library:create("ScrollingFrame", {
+        Parent = left, BackgroundTransparency = 1,
+        Position = dim2(0, 0, 0, 66), Size = dim2(1, 0, 1, -66),
+        ScrollBarThickness = 2, BorderSizePixel = 0, CanvasSize = dim2(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, ZIndex = 302,
+    })
+    library:create("UIListLayout", {
+        Parent = list, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+
+    local right = library:create("Frame", {
+        Parent = panel, BackgroundColor3 = themes.preset.section,
+        Position = dim2(0, 204, 0, 12), Size = dim2(1, -216, 1, -24),
+        BorderSizePixel = 0, ZIndex = 302,
+    })
+    library:create("UICorner", { Parent = right, CornerRadius = dim(0, 8) })
+
+    local infoTitle = library:create("TextLabel", {
+        Parent = right, BackgroundTransparency = 1,
+        Position = dim2(0, 12, 0, 12), Size = dim2(1, -24, 0, 20),
+        FontFace = fonts.font, Text = "Config info", TextSize = 14,
+        TextColor3 = themes.preset.text, TextXAlignment = Enum.TextXAlignment.Left,
+        BorderSizePixel = 0, ZIndex = 303,
+    })
+
+    local infoLines = {}
+    local labels = { "Config version", "Compatibility", "Created", "Creator", "Saved flags" }
+    for i, lab in ipairs(labels) do
+        library:create("TextLabel", {
+            Parent = right, BackgroundTransparency = 1,
+            Position = dim2(0, 12, 0, 40 + (i - 1) * 22), Size = dim2(0.5, -16, 0, 18),
+            FontFace = fonts.font, Text = lab, TextSize = 12,
+            TextColor3 = themes.preset.dimtext, TextXAlignment = Enum.TextXAlignment.Left,
+            BorderSizePixel = 0, ZIndex = 303,
+        })
+        infoLines[lab] = library:create("TextLabel", {
+            Parent = right, BackgroundTransparency = 1,
+            Position = dim2(0.5, 0, 0, 40 + (i - 1) * 22), Size = dim2(0.5, -12, 0, 18),
+            FontFace = fonts.font, Text = "—", TextSize = 12,
+            TextColor3 = themes.preset.text, TextXAlignment = Enum.TextXAlignment.Right,
+            BorderSizePixel = 0, ZIndex = 303,
+        })
+    end
+
+    local selected = nil
+
+    local function show_info(name)
+        local data = {
+            ["Config version"] = library.version or "—",
+            ["Compatibility"] = name and "Compatible" or "—",
+            ["Created"] = "—",
+            ["Creator"] = "—",
+            ["Saved flags"] = "—",
+        }
+        if name and isfile and isfile(path_of(name)) then
+            pcall(function()
+                local decoded = http_service:JSONDecode(readfile(path_of(name)))
+                if type(decoded) == "table" then
+                    data["Config version"] = tostring(decoded.__version or library.version or "—")
+                    data["Created"] = tostring(decoded.__created or "—")
+                    data["Creator"] = tostring(decoded.__creator or "—")
+                    local n = 0
+                    for k, _ in pairs(decoded) do
+                        if tostring(k):sub(1, 2) ~= "__" then n = n + 1 end
+                    end
+                    data["Saved flags"] = tostring(n) .. " flags"
+                end
+            end)
+        end
+        for lab, lbl in pairs(infoLines) do
+            lbl.Text = data[lab] or "—"
+        end
+    end
+
+    local function refresh_list()
+        for _, ch in ipairs(list:GetChildren()) do
+            if ch:IsA("TextButton") then ch:Destroy() end
+        end
+        for _, name in ipairs(list_configs()) do
+            local row = library:create("TextButton", {
+                Parent = list, BackgroundColor3 = themes.preset.element,
+                Size = dim2(1, 0, 0, 32), Text = "", AutoButtonColor = false,
+                BorderSizePixel = 0, ZIndex = 303,
+            })
+            library:create("UICorner", { Parent = row, CornerRadius = dim(0, 6) })
+            library:create("TextLabel", {
+                Parent = row, BackgroundTransparency = 1,
+                Position = dim2(0, 10, 0, 0), Size = dim2(1, -20, 1, 0),
+                FontFace = fonts.font, Text = name, TextSize = 13,
+                TextColor3 = themes.preset.text, TextXAlignment = Enum.TextXAlignment.Left,
+                BorderSizePixel = 0, ZIndex = 304,
+            })
+            row.MouseButton1Click:Connect(function()
+                selected = name
+                show_info(name)
+                if isfile and isfile(path_of(name)) then
+                    library:load_config(readfile(path_of(name)))
+                end
+                library:Notification({
+                    Name = "Config loaded",
+                    Description = "Restored \"" .. name .. "\".",
+                    Icon = "check",
+                })
+            end)
+        end
+    end
+
+    createBtn.MouseButton1Click:Connect(function()
+        local name = tostring(createBox.Text or ""):gsub("[^%w _%-]", "")
+        if name == "" then
+            library:Notification({ Name = "Name required", Description = "Type a config name.", Icon = "triangle-alert" })
+            return
+        end
+        writefile(path_of(name), library:get_config())
+        createBox.Text = ""
+        selected = name
+        refresh_list()
+        show_info(name)
+        library:Notification({ Name = "Config created", Description = "\"" .. name .. "\" saved.", Icon = "plus" })
+    end)
+
+    -- Theme presets strip at bottom of right
+    local y = 170
+    library:create("TextLabel", {
+        Parent = right, BackgroundTransparency = 1,
+        Position = dim2(0, 12, 0, y), Size = dim2(1, -24, 0, 18),
+        FontFace = fonts.font, Text = "Theme presets", TextSize = 12,
+        TextColor3 = themes.preset.dimtext, BorderSizePixel = 0, ZIndex = 303,
+    })
+    local colors = {
+        rgb(155, 150, 219), rgb(70, 140, 255), rgb(80, 200, 120),
+        rgb(72, 200, 214), rgb(240, 118, 150),
+    }
+    for i, col in ipairs(colors) do
+        local dot = library:create("TextButton", {
+            Parent = right, BackgroundColor3 = col,
+            Position = dim2(0, 12 + (i - 1) * 28, 0, y + 24),
+            Size = dim2(0, 18, 0, 18), Text = "", AutoButtonColor = false,
+            BorderSizePixel = 0, ZIndex = 303,
+        })
+        library:create("UICorner", { Parent = dot, CornerRadius = dim(1, 0) })
+        dot.MouseButton1Click:Connect(function()
+            library:update_theme("accent", col)
+        end)
+    end
+
+    local saveBtn = library:create("TextButton", {
+        Parent = right, BackgroundColor3 = themes.preset.accent,
+        Position = dim2(0, 12, 1, -44), Size = dim2(1, -24, 0, 32),
+        Text = "Save selected", TextColor3 = rgb(255,255,255), FontFace = fonts.font,
+        TextSize = 13, AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 303,
+    })
+    library:create("UICorner", { Parent = saveBtn, CornerRadius = dim(0, 8) })
+    saveBtn.MouseButton1Click:Connect(function()
+        if not selected then
+            library:Notification({ Name = "None selected", Description = "Pick a config first.", Icon = "triangle-alert" })
+            return
+        end
+        writefile(path_of(selected), library:get_config())
+        show_info(selected)
+        library:Notification({ Name = "Saved", Description = "\"" .. selected .. "\" updated.", Icon = "download" })
+    end)
+
+    refresh_list()
+    show_info(nil)
 end
 
 
