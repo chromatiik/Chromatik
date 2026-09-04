@@ -811,9 +811,16 @@ function library:window(properties)
             FontFace = fonts.font, Text = "", PlaceholderText = "Search...",
             PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
             TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
-            ClearTextOnFocus = false, BorderSizePixel = 0, ZIndex = 22, ZIndex = 9,
+            ClearTextOnFocus = false, BorderSizePixel = 0, ZIndex = 25,
+            TextTruncate = Enum.TextTruncate.None, Active = true, Visible = true,
         })
         items["search_box"] = searchBox
+        searchBox.Text = ""
+        pcall(function() searchBox.PlaceholderText = "Search..." end)
+        searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+            local q = string.lower(tostring(searchBox.Text or ""))
+            library._liveSearch(q)
+        end)
         searchBox.FocusLost:Connect(function(enter)
             if enter and library.OpenSearch then pcall(library.OpenSearch) end
         end)
@@ -922,7 +929,11 @@ function library:window(properties)
             local url = properties.Discord or properties.discord or "https://discord.gg/glacier"
             pcall(function() if setclipboard then setclipboard(tostring(url)) end end)
             pcall(function()
-                if library.notification then library:notification({ text = "Discord invite copied", time = 2 }) end
+                library:Notification({
+                    Name = "Discord",
+                    Description = "Invite link copied to clipboard.",
+                    Icon = "link",
+                })
             end)
         end)
 
@@ -1559,13 +1570,13 @@ function library:tab(properties)
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             Name = "\0",
-            Size = dim2(0, 40, 0, 40),
+            Size = dim2(0, 48, 0, 48),
             BorderSizePixel = 0,
             TextSize = 16,
             BackgroundColor3 = themes.preset.accent,
             BackgroundTransparency = 1,
         })
-        library:create("UICorner", { Parent = items["button"], CornerRadius = dim(0, 10) })
+        library:create("UICorner", { Parent = items["button"], CornerRadius = dim(0, 12) })
 
         items["icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.dimicon,
@@ -1575,7 +1586,7 @@ function library:tab(properties)
             BackgroundTransparency = 1,
             Position = dim2(0.5, 0, 0.5, 0),
             Name = "\0",
-            Size = dim2(0, 18, 0, 18),
+            Size = dim2(0, 22, 0, 22),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1827,7 +1838,7 @@ function library:tab(properties)
             selected_tab[5].Parent = library["cache"]
         end
 
-        library:tween(items["button"], { BackgroundTransparency = 0.82 })
+        library:tween(items["button"], { BackgroundTransparency = 1 })
         library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
         library:tween(items["name"], { TextColor3 = rgb(255, 255, 255) })
         library._active_tab_icon = items["icon"]
@@ -2191,6 +2202,27 @@ function library.SnapSection(outline, mx, my)
         end
     end
     if library._snapGhost then library._snapGhost.Visible = false end
+end
+
+
+function library._liveSearch(query)
+    query = tostring(query or ""):lower()
+    library._searchables = library._searchables or {}
+    for _, entry in ipairs(library._searchables) do
+        local inst = entry.instance
+        if not inst or not inst.Parent then continue end
+        if query == "" then
+            inst.Visible = true
+        else
+            local name = string.lower(tostring(entry.name or ""))
+            inst.Visible = string.find(name, query, 1, true) ~= nil
+        end
+    end
+end
+
+function library:RegisterSearchable(name, instance)
+    library._searchables = library._searchables or {}
+    table.insert(library._searchables, { name = name, instance = instance })
 end
 
 function library.OpenSearch()
@@ -2736,6 +2768,9 @@ function library:toggle(options)
 
     cfg.set(cfg.default)
     config_flags[cfg.flag] = cfg.set
+    pcall(function()
+        library:RegisterSearchable(cfg.name, items["toggle"])
+    end)
 
     return setmetatable(cfg, library)
 end
@@ -7344,6 +7379,263 @@ function library:Login(options)
     signInBtn.MouseButton1Click:Connect(submit)
     keyBox.FocusLost:Connect(function(e) if e then submit() end end)
     return { close = restoreWindow, submit = submit }
+end
+
+
+
+-- Zolar-style config + theme page (adapted for Chromatik/Glacier)
+function library:BuildConfigPage(tab)
+    if not tab then return end
+    local dir = library.directory .. "/configs"
+    pcall(function()
+        if makefolder then
+            makefolder(library.directory)
+            makefolder(dir)
+        end
+    end)
+
+    local function path_of(name)
+        return dir .. "/" .. tostring(name) .. ".json"
+    end
+
+    local function list_configs()
+        local names = {}
+        pcall(function()
+            if listfiles then
+                for _, f in ipairs(listfiles(dir)) do
+                    local n = tostring(f):match("([^/\\]+)%.json$")
+                    if n then table.insert(names, n) end
+                end
+            end
+        end)
+        table.sort(names)
+        return names
+    end
+
+    local left = tab:section({ name = "Configs", side = "Left" })
+    local right = tab:section({ name = "Config info", side = "Right" })
+    local themeSec = tab:section({ name = "Theme", side = "Right" })
+
+    -- create row
+    pcall(function()
+        left:textbox({ name = "Config name", flag = "zolar_cfg_name", default = "" })
+    end)
+    local selected = nil
+    local infoLabels = {}
+
+    local function show_info(name)
+        local data = {
+            version = library.version or "—",
+            compat = "Compatible",
+            created = "—",
+            creator = "—",
+            flags = "—",
+        }
+        if name and isfile and isfile(path_of(name)) then
+            pcall(function()
+                local decoded = http_service:JSONDecode(readfile(path_of(name)))
+                if type(decoded) == "table" then
+                    data.version = tostring(decoded.__version or library.version or "—")
+                    data.created = tostring(decoded.__created or "—")
+                    data.creator = tostring(decoded.__creator or "—")
+                    local n = 0
+                    for k, _ in pairs(decoded) do
+                        if tostring(k):sub(1, 2) ~= "__" then n = n + 1 end
+                    end
+                    data.flags = tostring(n) .. " flags"
+                    data.compat = "Compatible"
+                end
+            end)
+        end
+        for key, label in pairs(infoLabels) do
+            if label and label.Parent then
+                if key == "name" then
+                    label.Text = name and ("Selected: " .. name) or "No config selected"
+                else
+                    label.Text = tostring(data[key] or "—")
+                end
+            end
+        end
+    end
+
+    pcall(function()
+        left:button({
+            name = "Create",
+            callback = function()
+                local name = library.flags.zolar_cfg_name or ""
+                if type(name) == "table" then name = name.text or name.Text or "" end
+                name = tostring(name):gsub("[^%w _%-]", "")
+                if name == "" then
+                    library:Notification({ Name = "Config name required", Description = "Type a name before creating.", Icon = "triangle-alert" })
+                    return
+                end
+                if isfile and isfile(path_of(name)) then
+                    library:Notification({ Name = "Name already used", Description = "\"" .. name .. "\" already exists.", Icon = "triangle-alert" })
+                    return
+                end
+                writefile(path_of(name), library:get_config())
+                selected = name
+                show_info(name)
+                library:Notification({ Name = "Config created", Description = "\"" .. name .. "\" saved.", Icon = "plus" })
+                pcall(function() if library._refreshConfigButtons then library._refreshConfigButtons() end end)
+            end,
+        })
+    end)
+
+    -- dynamic list via buttons refreshed
+    local listSection = left
+    library._configRowFlags = library._configRowFlags or {}
+
+    function library._refreshConfigButtons()
+        -- notify only; full list shown via Load existing buttons below
+    end
+
+    for _, name in ipairs(list_configs()) do
+        pcall(function()
+            listSection:button({
+                name = "⚙ " .. name,
+                callback = function()
+                    selected = name
+                    if isfile and isfile(path_of(name)) then
+                        library:load_config(readfile(path_of(name)))
+                    end
+                    show_info(name)
+                    library:Notification({ Name = "Config loaded", Description = "Restored \"" .. name .. "\".", Icon = "check" })
+                end,
+            })
+        end)
+    end
+
+    pcall(function()
+        left:button({
+            name = "Save selected",
+            callback = function()
+                if not selected then
+                    library:Notification({ Name = "None selected", Description = "Select a config first.", Icon = "triangle-alert" })
+                    return
+                end
+                writefile(path_of(selected), library:get_config())
+                show_info(selected)
+                library:Notification({ Name = "Config saved", Description = "Wrote \"" .. selected .. "\".", Icon = "download" })
+            end,
+        })
+        left:button({
+            name = "Copy selected",
+            callback = function()
+                if not selected then return end
+                pcall(function()
+                    if setclipboard and isfile and isfile(path_of(selected)) then
+                        setclipboard(readfile(path_of(selected)))
+                    end
+                end)
+                library:Notification({ Name = "Config copied", Description = "\"" .. tostring(selected) .. "\" on clipboard.", Icon = "share-2" })
+            end,
+        })
+        left:button({
+            name = "Delete selected",
+            callback = function()
+                if not selected then return end
+                pcall(function() if delfile then delfile(path_of(selected)) end end)
+                library:Notification({ Name = "Config deleted", Description = "Removed \"" .. tostring(selected) .. "\".", Icon = "trash-2" })
+                selected = nil
+                show_info(nil)
+            end,
+        })
+        left:button({
+            name = "Refresh list",
+            callback = function()
+                local names = list_configs()
+                library:Notification({
+                    Name = "Configs",
+                    Description = (#names > 0) and table.concat(names, ", ") or "(empty)",
+                    Icon = "refresh-cw",
+                })
+            end,
+        })
+    end)
+
+    -- Info labels (right)
+    pcall(function()
+        local function info_line(key, title)
+            -- use button labels as static-ish display via toggle disabled pattern - use textbox readonly feel via button
+            right:button({
+                name = title .. ": —",
+                callback = function() end,
+            })
+            -- store last button text update via flags is hard; use notification on show_info instead
+        end
+    end)
+
+    -- Theme presets as buttons + accent
+    local presets = {
+        { "Violet", rgb(155, 150, 219) },
+        { "Blue", rgb(70, 140, 255) },
+        { "Green", rgb(80, 200, 120) },
+        { "Cyan", rgb(72, 200, 214) },
+        { "Rose", rgb(240, 118, 150) },
+        { "Crimson", rgb(200, 72, 78) },
+    }
+    for _, p in ipairs(presets) do
+        local label, col = p[1], p[2]
+        pcall(function()
+            themeSec:button({
+                name = "Preset: " .. label,
+                callback = function()
+                    library:update_theme("accent", col)
+                    library:Notification({ Name = "Theme", Description = label .. " accent applied.", Icon = "palette" })
+                end,
+            })
+        end)
+    end
+    pcall(function()
+        themeSec:colorpicker({
+            name = "Accent",
+            flag = "zolar_accent",
+            default = themes.preset.accent,
+            callback = function(col)
+                library:update_theme("accent", col)
+            end,
+        })
+        themeSec:colorpicker({
+            name = "Background",
+            flag = "zolar_bg",
+            default = themes.preset.background,
+            callback = function(col)
+                themes.preset.background = col
+                library:update_theme("background", col)
+            end,
+        })
+        themeSec:colorpicker({
+            name = "Sections",
+            flag = "zolar_section",
+            default = themes.preset.section,
+            callback = function(col)
+                themes.preset.section = col
+                library:update_theme("section", col)
+            end,
+        })
+        themeSec:colorpicker({
+            name = "Text",
+            flag = "zolar_text",
+            default = themes.preset.text,
+            callback = function(col)
+                themes.preset.text = col
+                library:update_theme("text", col)
+            end,
+        })
+        themeSec:colorpicker({
+            name = "Dim text",
+            flag = "zolar_dim",
+            default = themes.preset.dimtext,
+            callback = function(col)
+                themes.preset.dimtext = col
+                library:update_theme("dimtext", col)
+            end,
+        })
+    end)
+
+    show_info(nil)
+    return true
 end
 
 
