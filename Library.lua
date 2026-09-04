@@ -611,17 +611,16 @@ function library:load_config(config_json)
     end
 
     library.silent = true
-    for _, v in config do
-        local function_set = library.config_flags[_]
-        if not function_set then
-            continue
-        end
-        if type(v) == "table" and v["Transparency"] and v["Color"] then
-            function_set(hex(v["Color"]), v["Transparency"])
-        elseif type(v) == "table" and v["active"] then
-            function_set(v)
-        else
-            function_set(v)
+    for key, v in pairs(config) do
+        local function_set = library.config_flags[key]
+        if function_set then
+            if type(v) == "table" and v["Transparency"] and v["Color"] then
+                function_set(hex(v["Color"]), v["Transparency"])
+            elseif type(v) == "table" and v["active"] then
+                function_set(v)
+            else
+                function_set(v)
+            end
         end
     end
 
@@ -661,9 +660,7 @@ function library:ListConfigs()
         return Result
     end
     for _, File in listfiles(library.directory .. "/configs") do
-        if string.sub(File, -5) ~= ".json" then
-            continue
-        end
+        if string.sub(File, -5) == ".json" then
         local Name = string.match(File, "([^/\\]+)%.json$")
         if Name then
             insert(Result, Name)
@@ -1090,7 +1087,7 @@ function library:window(properties)
                 local mark = library:create("TextLabel", {
                     Parent = row, BackgroundTransparency = 1,
                     Position = dim2(0, 10, 0, 0), Size = dim2(0, 16, 1, 0),
-                    Text = opt.selected and "✓" or "", TextSize = 12,
+                    Text = opt.selected and "OK" or "", TextSize = 12,
                     TextColor3 = themes.preset.accent, FontFace = fonts.font, ZIndex = 87,
                 })
                 library:create("TextLabel", {
@@ -1167,7 +1164,7 @@ function library:window(properties)
                     library:create("TextLabel", {
                         Parent = row, BackgroundTransparency = 1,
                         Position = dim2(1, -28, 0, 0), Size = dim2(0, 20, 1, 0),
-                        Text = "›", TextSize = 16, TextColor3 = themes.preset.dimtext,
+                        Text = ">", TextSize = 16, TextColor3 = themes.preset.dimtext,
                         FontFace = fonts.font, ZIndex = 82,
                     })
                 elseif right_kind == "check" then
@@ -1452,7 +1449,7 @@ function library:window(properties)
                 Parent = btn,
                 BackgroundTransparency = 1,
                 Size = dim2(1, 0, 1, 0),
-                Text = "≡",
+                Text = "=",
                 TextColor3 = themes.preset.text,
                 TextSize = 22,
                 FontFace = fonts.font,
@@ -2306,21 +2303,30 @@ end
 function library._liveSearch(query)
     query = tostring(query or ""):lower()
     library._searchables = library._searchables or {}
+    local firstMatchTab = nil
     for _, entry in ipairs(library._searchables) do
         local inst = entry.instance
-        if not inst or not inst.Parent then continue end
-        if query == "" then
-            inst.Visible = true
-        else
-            local name = string.lower(tostring(entry.name or ""))
-            inst.Visible = string.find(name, query, 1, true) ~= nil
+        if inst and inst.Parent then
+            if query == "" then
+                inst.Visible = true
+            else
+                local name = string.lower(tostring(entry.name or ""))
+                local hit = string.find(name, query, 1, true) ~= nil
+                inst.Visible = hit
+                if hit and entry.tab and not firstMatchTab then
+                    firstMatchTab = entry.tab
+                end
+            end
         end
+    end
+    if query ~= "" and firstMatchTab and type(firstMatchTab.open_tab) == "function" then
+        pcall(firstMatchTab.open_tab)
     end
 end
 
-function library:RegisterSearchable(name, instance)
+function library:RegisterSearchable(name, instance, tab)
     library._searchables = library._searchables or {}
-    table.insert(library._searchables, { name = name, instance = instance })
+    table.insert(library._searchables, { name = name, instance = instance, tab = tab })
 end
 
 function library.OpenSearch()
@@ -5990,7 +5996,7 @@ function library:Notification(Params)
         local Y = 15
         for _, Value in library.Notifs do
             if Value == Stop then break end
-            if Value.Dead then continue end
+            if not Value.Dead then
             Y = Y + Value.Height + 10
         end
         return Y
@@ -5999,7 +6005,7 @@ function library:Notification(Params)
     local function Reflow()
         local Y = 15
         for _, Value in library.Notifs do
-            if Value.Dead then continue end
+            if not Value.Dead then
             library:tween(Value.Frame, { Position = dim2(1, -15, 0, Y) }, Enum.EasingStyle.Quart, 0.3)
             Y = Y + Value.Height + 10
         end
@@ -7710,7 +7716,7 @@ function library:BuildConfigPage(tab)
     for _, name in ipairs(list_configs()) do
         pcall(function()
             listSection:button({
-                name = "⚙ " .. name,
+                name = "" .. name,
                 callback = function()
                     selected = name
                     if isfile and isfile(path_of(name)) then
