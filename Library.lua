@@ -7942,7 +7942,6 @@ function library:OpenConfigPopup()
         Text = "Presets", TextSize = 14, TextColor3 = themes.preset.text,
         TextXAlignment = Enum.TextXAlignment.Left, BorderSizePixel = 0, ZIndex = 303,
     })
-    pcall(function() ApplyIcon end)
 
     local createBox = library:create("TextBox", {
         Parent = left, BackgroundColor3 = themes.preset.element,
