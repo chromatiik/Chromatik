@@ -67,7 +67,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.7.1-evenesce",
+    version = "1.7.2-evenesce",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -5994,20 +5994,22 @@ function library:Notification(Params)
 
     local function StackHeight(Stop)
         local Y = 15
-        for _, Value in library.Notifs do
+        for _, Value in ipairs(library.Notifs) do
             if Value == Stop then break end
             if not Value.Dead then
-            Y = Y + Value.Height + 10
+                Y = Y + Value.Height + 10
+            end
         end
         return Y
     end
 
     local function Reflow()
         local Y = 15
-        for _, Value in library.Notifs do
+        for _, Value in ipairs(library.Notifs) do
             if not Value.Dead then
-            library:tween(Value.Frame, { Position = dim2(1, -15, 0, Y) }, Enum.EasingStyle.Quart, 0.3)
-            Y = Y + Value.Height + 10
+                library:tween(Value.Frame, { Position = dim2(1, -15, 0, Y) }, Enum.EasingStyle.Quart, 0.3)
+                Y = Y + Value.Height + 10
+            end
         end
     end
 
