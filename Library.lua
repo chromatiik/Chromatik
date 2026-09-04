@@ -1,4 +1,3 @@
--- GLACIER_BUILD 2026-09-04-b | clean Chromatik base
 local uis = game:GetService("UserInputService")
 local players = game:GetService("Players")
 local ws = game:GetService("Workspace")
@@ -675,7 +674,7 @@ function library:window(properties)
         name = properties.name or properties.Name or "Glacier",
         game_name = properties.gameInfo or properties.game_info or properties.GameInfo or "Glacier for Roblox",
         author = properties.author or properties.Author or library.author or "chromatik",
-        size = properties.size or properties.Size or dim2(0, 700, 0, 565),
+        size = properties.size or properties.Size or dim2(0, 780, 0, 450),
         selected_tab = nil,
         items = {},
     }
@@ -736,9 +735,10 @@ function library:window(properties)
             BackgroundTransparency = 1,
             Name = "\0",
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(0, 196, 1, -25),
+            Size = dim2(0, 68, 1, 0),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
+            ClipsDescendants = true,
         })
 
         library:create("Frame", {
@@ -755,26 +755,41 @@ function library:window(properties)
             Parent = items["side_frame"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 0, 0, 60),
+            AnchorPoint = vec2(0, 0.5),
+            Position = dim2(0, 0, 0.5, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, 0, 1, -108),
+            Size = dim2(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             CanvasSize = dim2(0, 0, 0, 0),
-            ScrollBarThickness = 3,
+            ScrollBarThickness = 0,
             ScrollBarImageColor3 = rgb(60, 60, 66),
             Active = true,
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
+        library:create("UIListLayout", {
+            Parent = items["button_holder"],
+            FillDirection = Enum.FillDirection.Vertical,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = dim(0, 8),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        })
+        library:create("UIPadding", {
+            Parent = items["button_holder"],
+            PaddingTop = dim(0, 4),
+            PaddingBottom = dim(0, 4),
+        })
         cfg.button_holder = items["button_holder"]
 
         items["search_btn"] = library:create("Frame", {
-            Parent = items["side_frame"],
+            Parent = items["main"],
             BackgroundColor3 = themes.preset.element,
-            Position = dim2(0, 10, 1, -40),
-            Size = dim2(1, -20, 0, 28),
+            Position = dim2(0, 80, 0, 12),
+            Size = dim2(0, 280, 0, 32),
             BorderSizePixel = 0,
-            ZIndex = 8,
+            ZIndex = 20,
         })
         library:create("UICorner", { Parent = items["search_btn"], CornerRadius = dim(0, 6) })
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
@@ -847,9 +862,9 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 0),
+            Position = dim2(0, 76, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -196, 0, 56),
+            Size = dim2(1, -88, 0, 52),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -865,6 +880,29 @@ function library:window(properties)
             BackgroundColor3 = themes.preset.line,
         })
 
+
+        items["discord_btn"] = library:create("TextButton", {
+            Parent = items["multi_holder"], Name = "\0", Text = "", AutoButtonColor = false,
+            BackgroundColor3 = themes.preset.element, AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -54, 0.5, 0), Size = dim2(0, 28, 0, 28), ZIndex = 6, BorderSizePixel = 0,
+        })
+        library:create("UICorner", { Parent = items["discord_btn"], CornerRadius = dim(0, 7) })
+        local _dIcon = library:create("ImageLabel", {
+            Parent = items["discord_btn"], BackgroundTransparency = 1,
+            AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 15, 0, 15), BorderSizePixel = 0, ZIndex = 7,
+            Image = "rbxassetid://120249220493681", ImageColor3 = rgb(255, 255, 255),
+        })
+        pcall(function()
+            if ApplyIcon then ApplyIcon(_dIcon, "message-circle") end
+        end)
+        items["discord_btn"].MouseButton1Click:Connect(function()
+            local url = properties.Discord or properties.discord or "https://discord.gg/glacier"
+            pcall(function() if setclipboard then setclipboard(tostring(url)) end end)
+            pcall(function()
+                if library.notification then library:notification({ text = "Discord invite copied", time = 2 }) end
+            end)
+        end)
 
         items["profile_btn"] = library:create("TextButton", {
             Parent = items["multi_holder"], Name = "\0", Text = "", AutoButtonColor = false,
@@ -1048,9 +1086,9 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 196, 0, 56),
+            Position = dim2(0, 76, 0, 52),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -196, 1, -81),
+            Size = dim2(1, -88, 1, -60),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 2,
@@ -1130,86 +1168,6 @@ function library:window(properties)
 
     library:draggify(items["main"])
         library._menuMain = items["main"]
-        -- Discord (real-ish brand mark) + avatar dropdown
-        do
-            local discordUrl = properties.Discord or properties.discord or "https://discord.gg/glacier"
-            local dbtn = library:create("TextButton", {
-                Parent = items["main"],
-                AnchorPoint = vec2(1, 0),
-                Position = dim2(1, -90, 0, 12),
-                Size = dim2(0, 28, 0, 28),
-                BackgroundColor3 = themes.preset.element,
-                Text = "", AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 25,
-            })
-            library:create("UICorner", { Parent = dbtn, CornerRadius = dim(0, 7) })
-            local dic = library:create("ImageLabel", {
-                Parent = dbtn, BackgroundTransparency = 1,
-                AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-                Size = dim2(0, 16, 0, 16), BorderSizePixel = 0, ZIndex = 26,
-                ImageColor3 = rgb(255, 255, 255),
-            })
-            -- Discord logo asset (common public icon id)
-            dic.Image = "rbxassetid://120249220493681"
-            pcall(function()
-                ApplyIcon(dic, "bot")
-                if not dic.Image or dic.Image == "" or dic.Image == "rbxassetid://0" then
-                    dic.Image = "rbxassetid://6031075931"
-                end
-            end)
-            dbtn.MouseButton1Click:Connect(function()
-                pcall(function() if setclipboard then setclipboard(tostring(discordUrl)) end end)
-                pcall(function()
-                    if library.notification then library:notification({ text = "Discord invite copied", time = 2 }) end
-                end)
-            end)
-
-            local avatarBtn = library:create("ImageButton", {
-                Parent = items["main"],
-                AnchorPoint = vec2(1, 0),
-                Position = dim2(1, -14, 0, 12),
-                Size = dim2(0, 28, 0, 28),
-                BackgroundColor3 = themes.preset.element,
-                AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 25,
-                ScaleType = Enum.ScaleType.Crop,
-            })
-            library:create("UICorner", { Parent = avatarBtn, CornerRadius = dim(1, 0) })
-            library:create("UIStroke", { Parent = avatarBtn, Color = themes.preset.line, Thickness = 1 })
-            task.spawn(function()
-                local ok, content = pcall(function()
-                    return players:GetUserThumbnailAsync(lp.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-                end)
-                if ok and content then avatarBtn.Image = content end
-            end)
-            local drop
-            avatarBtn.MouseButton1Click:Connect(function()
-                if drop and drop.Parent then drop:Destroy() drop = nil return end
-                drop = library:create("Frame", {
-                    Parent = items["main"], AnchorPoint = vec2(1, 0),
-                    Position = dim2(1, -12, 0, 48), Size = dim2(0, 168, 0, 0),
-                    AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = themes.preset.section,
-                    BorderSizePixel = 0, ZIndex = 40,
-                })
-                library:create("UICorner", { Parent = drop, CornerRadius = dim(0, 8) })
-                library:create("UIStroke", { Parent = drop, Color = rgb(30, 30, 36), Thickness = 1 })
-                library:create("UIPadding", { Parent = drop, PaddingTop = dim(0, 8), PaddingBottom = dim(0, 8), PaddingLeft = dim(0, 8), PaddingRight = dim(0, 8) })
-                library:create("UIListLayout", { Parent = drop, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
-                local function opt(text, fn)
-                    local b = library:create("TextButton", {
-                        Parent = drop, Size = dim2(1, 0, 0, 28), BackgroundColor3 = themes.preset.element,
-                        Text = text, FontFace = fonts.font, TextSize = 12, TextColor3 = themes.preset.text,
-                        AutoButtonColor = false, BorderSizePixel = 0, ZIndex = 41,
-                    })
-                    library:create("UICorner", { Parent = b, CornerRadius = dim(0, 6) })
-                    b.MouseButton1Click:Connect(function()
-                        pcall(fn)
-                        if drop then drop:Destroy() drop = nil end
-                    end)
-                end
-                opt("Copy username", function() if setclipboard then setclipboard(lp.Name) end end)
-                opt("Copy user id", function() if setclipboard then setclipboard(tostring(lp.UserId)) end end)
-                opt("Unload menu", function() library:unload_menu() end)
-            end)
-        end
     library:resizify(items["main"])
 
     do
@@ -1453,21 +1411,22 @@ function library:tab(properties)
             AutoButtonColor = false,
             BackgroundTransparency = 1,
             Name = "\0",
-            Size = dim2(1, 0, 0, 35),
+            Size = dim2(0, 40, 0, 40),
             BorderSizePixel = 0,
             TextSize = 16,
-            BackgroundColor3 = rgb(29, 29, 29),
+            BackgroundColor3 = themes.preset.accent,
         })
+        library:create("UICorner", { Parent = items["button"], CornerRadius = dim(0, 10) })
 
         items["icon"] = library:create("ImageLabel", {
             ImageColor3 = themes.preset.dimicon,
             BorderColor3 = rgb(0, 0, 0),
             Parent = items["button"],
-            AnchorPoint = vec2(0, 0.5),
+            AnchorPoint = vec2(0.5, 0.5),
             BackgroundTransparency = 1,
-            Position = dim2(0, 10, 0.5, 0),
+            Position = dim2(0.5, 0, 0.5, 0),
             Name = "\0",
-            Size = dim2(0, 22, 0, 22),
+            Size = dim2(0, 18, 0, 18),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -1478,12 +1437,14 @@ function library:tab(properties)
             FontFace = fonts.font,
             TextColor3 = themes.preset.dimtext,
             BorderColor3 = rgb(0, 0, 0),
-            Text = cfg.name,
+            Text = "",
             Parent = items["button"],
             Name = "\0",
-            Size = dim2(0, 0, 1, 0),
-            Position = dim2(0, 40, 0, 0),
+            Size = dim2(0, 0, 0, 0),
+            Position = dim2(0, 0, 0, 0),
             BackgroundTransparency = 1,
+            Visible = false,
+            TextTransparency = 1,
             TextXAlignment = Enum.TextXAlignment.Left,
             BorderSizePixel = 0,
             AutomaticSize = Enum.AutomaticSize.X,
