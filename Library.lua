@@ -67,7 +67,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.7.0-evenesce",
+    version = "1.7.1-evenesce",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
