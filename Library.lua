@@ -67,7 +67,7 @@ local library = {
     connections = {},
     notifications = { notifs = {} },
     current_open = nil,
-    version = "1.7.2-evenesce",
+    version = "1.7.4-evenesce",
     theme_dirty = false,
     silent = false,
     MenuKeybind = Enum.KeyCode.LeftAlt,
@@ -661,9 +661,10 @@ function library:ListConfigs()
     end
     for _, File in listfiles(library.directory .. "/configs") do
         if string.sub(File, -5) == ".json" then
-        local Name = string.match(File, "([^/\\]+)%.json$")
-        if Name then
-            insert(Result, Name)
+            local Name = string.match(File, "([^/\\]+)%.json$")
+            if Name then
+                insert(Result, Name)
+            end
         end
     end
     return Result
