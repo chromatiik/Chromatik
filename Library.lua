@@ -395,6 +395,10 @@ function library:update_theme(theme, color)
             if switch and switch.Parent then
                 pcall(function()
                     switch.BackgroundColor3 = color
+                    local outline = switch:FindFirstChild("checkbox_outline")
+                    if outline then
+                        outline.BackgroundColor3 = color
+                    end
                 end)
             end
         end
@@ -674,7 +678,7 @@ function library:window(properties)
         name = properties.name or properties.Name or "Glacier",
         game_name = properties.gameInfo or properties.game_info or properties.GameInfo or "Glacier for Roblox",
         author = properties.author or properties.Author or library.author or "chromatik",
-        size = properties.size or properties.Size or dim2(0, 780, 0, 450),
+        size = properties.size or properties.Size or dim2(0, 780, 0, 500),
         selected_tab = nil,
         items = {},
     }
@@ -795,19 +799,19 @@ function library:window(properties)
         library:create("UIStroke", { Parent = items["search_btn"], Color = rgb(48,48,54), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
         local sic = library:create("ImageLabel", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
-            Size = dim2(0, 14, 0, 14), Position = dim2(0, 8, 0.5, -7),
+            Size = dim2(0, 14, 0, 14), Position = dim2(0, 10, 0.5, -7),
             ImageColor3 = themes.preset.dimtext, BorderSizePixel = 0,
             Image = "rbxassetid://6031094678",
-            ZIndex = 9,
+            ZIndex = 22,
         })
         pcall(function() if ApplyIcon then ApplyIcon(sic, "search") end end)
         local searchBox = library:create("TextBox", {
             Parent = items["search_btn"], BackgroundTransparency = 1,
-            Position = dim2(0, 26, 0, 0), Size = dim2(1, -32, 1, 0),
+            Position = dim2(0, 30, 0, 0), Size = dim2(1, -36, 1, 0),
             FontFace = fonts.font, Text = "", PlaceholderText = "Search...",
             PlaceholderColor3 = themes.preset.dimtext, TextColor3 = themes.preset.text,
             TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
-            ClearTextOnFocus = false, BorderSizePixel = 0, ZIndex = 9,
+            ClearTextOnFocus = false, BorderSizePixel = 0, ZIndex = 22, ZIndex = 9,
         })
         items["search_box"] = searchBox
         searchBox.FocusLost:Connect(function(enter)
@@ -862,9 +866,9 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 76, 0, 0),
+            Position = dim2(0, 72, 0, 0),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -88, 0, 52),
+            Size = dim2(1, -80, 0, 48),
             BorderSizePixel = 0,
             BackgroundColor3 = rgb(255, 255, 255),
         })
@@ -883,41 +887,35 @@ function library:window(properties)
 
         items["discord_btn"] = library:create("TextButton", {
             Parent = items["multi_holder"], Name = "\0", Text = "", AutoButtonColor = false,
-            BackgroundColor3 = themes.preset.element, AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -54, 0.5, 0), Size = dim2(0, 28, 0, 28), ZIndex = 6, BorderSizePixel = 0,
+            BackgroundTransparency = 1, AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -48, 0.5, 0), Size = dim2(0, 32, 0, 32), ZIndex = 6, BorderSizePixel = 0,
         })
-        library:create("UICorner", { Parent = items["discord_btn"], CornerRadius = dim(0, 7) })
+        local dImg = library:create("ImageLabel", {
+            Parent = items["discord_btn"], BackgroundTransparency = 1,
+            AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
+            Size = dim2(0, 18, 0, 18), BorderSizePixel = 0, ZIndex = 7,
+            ImageColor3 = themes.preset.dimtext,
+        })
+        pcall(function() ApplyIcon(dImg, "link") end)
+        if not dImg.Image or dImg.Image == "" or dImg.Image == "rbxassetid://0" then
+            pcall(function() ApplyIcon(dImg, "external-link") end)
+        end
         do
-            local dImg = library:create("ImageLabel", {
-                Parent = items["discord_btn"], BackgroundTransparency = 1,
-                AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-                Size = dim2(0, 16, 0, 16), BorderSizePixel = 0, ZIndex = 7,
-                ImageColor3 = rgb(255, 255, 255),
-                Image = "rbxassetid://120249220493681",
+            local tip = library:create("TextLabel", {
+                Parent = items["main"], Visible = false, BackgroundColor3 = themes.preset.section,
+                FontFace = fonts.font, Text = "Copy Discord invite", TextSize = 12,
+                TextColor3 = themes.preset.text, Size = dim2(0, 130, 0, 22),
+                BorderSizePixel = 0, ZIndex = 100, AnchorPoint = vec2(1, 0),
             })
-            -- Prefer a real Discord logo file (not Lucide)
-            task.spawn(function()
-                pcall(function()
-                    local urls = {
-                        "https://cdn.simpleicons.org/discord/5865F2",
-                        "https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png",
-                    }
-                    for _, url in ipairs(urls) do
-                        local ok, data = pcall(function() return game:HttpGet(url) end)
-                        if ok and type(data) == "string" and #data > 200 then
-                            pcall(function()
-                                if makefolder then makefolder(library.directory) end
-                                writefile(library.directory .. "/discord_icon.png", data)
-                                local id = getcustomasset(library.directory .. "/discord_icon.png")
-                                if id then
-                                    dImg.Image = id
-                                    dImg.ImageColor3 = rgb(255, 255, 255)
-                                end
-                            end)
-                            break
-                        end
-                    end
-                end)
+            library:create("UICorner", { Parent = tip, CornerRadius = dim(0, 4) })
+            items["discord_btn"].MouseEnter:Connect(function()
+                dImg.ImageColor3 = themes.preset.text
+                tip.Position = dim2(1, -48, 0, 48)
+                tip.Visible = true
+            end)
+            items["discord_btn"].MouseLeave:Connect(function()
+                dImg.ImageColor3 = themes.preset.dimtext
+                tip.Visible = false
             end)
         end
         items["discord_btn"].MouseButton1Click:Connect(function()
@@ -930,19 +928,37 @@ function library:window(properties)
 
         items["profile_btn"] = library:create("TextButton", {
             Parent = items["multi_holder"], Name = "\0", Text = "", AutoButtonColor = false,
-            BackgroundColor3 = themes.preset.element, AnchorPoint = vec2(1, 0.5),
-            Position = dim2(1, -14, 0.5, 0), Size = dim2(0, 28, 0, 28), ZIndex = 6, BorderSizePixel = 0,
+            BackgroundTransparency = 1, AnchorPoint = vec2(1, 0.5),
+            Position = dim2(1, -12, 0.5, 0), Size = dim2(0, 32, 0, 32), ZIndex = 6, BorderSizePixel = 0,
         })
-        library:create("UICorner", { Parent = items["profile_btn"], CornerRadius = dim(0, 7) })
         items["profile_avatar"] = library:create("ImageLabel", {
             Parent = items["profile_btn"], Name = "\0", BackgroundTransparency = 1,
             AnchorPoint = vec2(0.5, 0.5), Position = dim2(0.5, 0, 0.5, 0),
-            Size = dim2(0, 16, 0, 16), BorderSizePixel = 0, ZIndex = 7,
+            Size = dim2(0, 20, 0, 20), BorderSizePixel = 0, ZIndex = 7,
             ImageColor3 = themes.preset.dimtext,
         })
         pcall(function() ApplyIcon(items["profile_avatar"], "settings") end)
         if not items["profile_avatar"].Image or items["profile_avatar"].Image == "" or items["profile_avatar"].Image == "rbxassetid://0" then
             items["profile_avatar"].Image = "rbxassetid://6031280882"
+        end
+        -- hover tooltip
+        do
+            local tip = library:create("TextLabel", {
+                Parent = items["main"], Visible = false, BackgroundColor3 = themes.preset.section,
+                FontFace = fonts.font, Text = "Settings", TextSize = 12, TextColor3 = themes.preset.text,
+                Size = dim2(0, 64, 0, 22), BorderSizePixel = 0, ZIndex = 100,
+                AnchorPoint = vec2(1, 0),
+            })
+            library:create("UICorner", { Parent = tip, CornerRadius = dim(0, 4) })
+            items["profile_btn"].MouseEnter:Connect(function()
+                items["profile_avatar"].ImageColor3 = themes.preset.text
+                tip.Position = dim2(1, -12, 0, 48)
+                tip.Visible = true
+            end)
+            items["profile_btn"].MouseLeave:Connect(function()
+                items["profile_avatar"].ImageColor3 = themes.preset.dimtext
+                tip.Visible = false
+            end)
         end
 
         local profileOpen = false
@@ -976,12 +992,19 @@ function library:window(properties)
             end
         end
 
+        local flyoutOpen = nil
         local function hide_flyout()
             flyout.Visible = false
+            flyoutOpen = nil
             clear_children(flyout)
         end
 
-        local function show_flyout(anchor_y, options)
+        local function show_flyout(anchor_y, options, id)
+            if flyoutOpen == id then
+                hide_flyout()
+                return
+            end
+            flyoutOpen = id
             clear_children(flyout)
             local y = 6
             for _, opt in ipairs(options) do
@@ -1020,7 +1043,7 @@ function library:window(properties)
         local menuScale = 100
         local styleName = "Crimson"
         local styles = {
-            { "Evenesce", rgb(155, 150, 219) },
+            { "Violet", rgb(155, 150, 219) },
             { "Crimson", rgb(200, 72, 78) },
             { "Ocean", rgb(70, 140, 255) },
             { "Emerald", rgb(80, 200, 120) },
@@ -1032,16 +1055,21 @@ function library:window(properties)
             menuScale = pct
             local main = items["main"]
             if not main then return end
-            local base = main:GetAttribute("_baseSize")
-            if not base then
-                main:SetAttribute("_baseW", main.Size.X.Offset)
-                main:SetAttribute("_baseH", main.Size.Y.Offset)
-                base = true
+            -- lock original once
+            if not main:GetAttribute("_baseLocked") then
+                main:SetAttribute("_baseW", 780)
+                main:SetAttribute("_baseH", 500)
+                main:SetAttribute("_baseLocked", true)
             end
-            local bw = main:GetAttribute("_baseW") or 780
-            local bh = main:GetAttribute("_baseH") or 450
-            local s = pct / 100
-            main.Size = dim2(0, math.floor(bw * s + 0.5), 0, math.floor(bh * s + 0.5))
+            local sizes = {
+                [50] = {390, 250},
+                [75] = {585, 375},
+                [100] = {780, 500},
+                [125] = {975, 625},
+                [150] = {1170, 750},
+            }
+            local sz = sizes[pct] or sizes[100]
+            main.Size = dim2(0, sz[1], 0, sz[2])
         end
 
         function rebuildProfile()
@@ -1097,7 +1125,7 @@ function library:window(properties)
                         callback = function() apply_scale(pct) end,
                     })
                 end
-                show_flyout(8, opts)
+                show_flyout(8, opts, "scale")
             end)
 
             local styleRow = add_row("Style", "chevron")
@@ -1114,7 +1142,7 @@ function library:window(properties)
                         end,
                     })
                 end
-                show_flyout(40, opts)
+                show_flyout(40, opts, "style")
             end)
 
             local wmRow = add_row("Hide Watermark", "check", hideWm)
@@ -1206,9 +1234,9 @@ function library:window(properties)
             Parent = items["main"],
             Name = "\0",
             BackgroundTransparency = 1,
-            Position = dim2(0, 76, 0, 52),
+            Position = dim2(0, 72, 0, 48),
             BorderColor3 = rgb(0, 0, 0),
-            Size = dim2(1, -88, 1, -60),
+            Size = dim2(1, -80, 1, -52),
             BorderSizePixel = 0,
             BackgroundColor3 = themes.preset.background,
             ZIndex = 2,
@@ -1788,7 +1816,7 @@ function library:tab(properties)
             if selected_tab[4] ~= items["tab_holder"] then
                 self.items["global_fade"].BackgroundTransparency = 0.65
                 library:tween(self.items["global_fade"], { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, 0.25)
-                selected_tab[4].Size = dim2(1, -88, 1, -60)
+                selected_tab[4].Size = dim2(1, 0, 1, 0)
             end
             library:tween(selected_tab[1], { BackgroundTransparency = 1 })
             library:tween(selected_tab[2], { ImageColor3 = themes.preset.dimicon })
@@ -1803,12 +1831,13 @@ function library:tab(properties)
         library:tween(items["icon"], { ImageColor3 = themes.preset.accent })
         library:tween(items["name"], { TextColor3 = rgb(255, 255, 255) })
         library._active_tab_icon = items["icon"]
-        library:tween(items["tab_holder"], { Size = dim2(1, -88, 1, -60) }, Enum.EasingStyle.Quad, 0.4)
+        items["tab_holder"].Size = dim2(1, 0, 1, 0)
 
         items["tab_holder"].Visible = true
         items["tab_holder"].Parent = self.items["global_fade"]
         items["tab_holder"].Position = dim2(0, 0, 0, 0)
         items["tab_holder"].Size = dim2(1, 0, 1, 0)
+        items["tab_holder"].CanvasSize = dim2(0, 0, 0, 0)
         items["tab_holder"].ScrollingEnabled = true
         task.defer(function() pcall(library.RefreshPageScroll) end)
         items["multi_section_button_holder"].Visible = (#cfg.tabs > 1)
@@ -2633,12 +2662,11 @@ function library:toggle(options)
         Parent = items["right_components"],
         Name = "\0",
         Position = dim2(1, 0, 0, 0),
-        Size = dim2(0, 16, 0, 16),
+        Size = dim2(0, 20, 0, 20),
         BorderSizePixel = 0,
         TextSize = 14,
         BackgroundColor3 = rgb(67, 67, 68),
     })
-    library:apply_theme(items["toggle_button"], "accent", "BackgroundColor3")
     library:create("UICorner", {
         Parent = items["toggle_button"],
         CornerRadius = dim(0, 4),
@@ -2647,14 +2675,13 @@ function library:toggle(options)
     items["outline"] = library:create("Frame", {
         Parent = items["toggle_button"],
         Size = dim2(1, -2, 1, -2),
-        Name = "\0",
+        Name = "checkbox_outline",
         BorderMode = Enum.BorderMode.Inset,
         BorderColor3 = rgb(0, 0, 0),
         Position = dim2(0, 1, 0, 1),
         BorderSizePixel = 0,
         BackgroundColor3 = rgb(22, 22, 24),
     })
-    library:apply_theme(items["outline"], "accent", "BackgroundColor3")
     library:create("UICorner", {
         Parent = items["outline"],
         CornerRadius = dim(0, 4),
@@ -3711,30 +3738,32 @@ function library:keybind(options)
         Parent = items["keybind_holder"],
         CornerRadius = dim(0, 4),
     })
-    if inlineOnToggle and keybindParent then
+    if inlineOnToggle and self.items and self.items["right_components"] then
         pcall(function()
             items["keybind_element"].Visible = false
             items["keybind_element"].Size = dim2(0, 0, 0, 0)
-            items["keybind_holder"].Parent = keybindParent
-            items["keybind_holder"].Size = dim2(0, 0, 0, 18)
+            -- sit left of the checkbox on the right side
+            items["keybind_holder"].Parent = self.items["right_components"]
+            items["keybind_holder"].Size = dim2(0, 0, 0, 16)
             items["keybind_holder"].AutomaticSize = Enum.AutomaticSize.X
-            items["keybind_holder"].AnchorPoint = vec2(0, 0.5)
-            items["keybind_holder"].Position = dim2(0, 0, 0.5, 0)
+            items["keybind_holder"].LayoutOrder = 1
             items["keybind_holder"].ZIndex = 12
             items["keybind_holder"].BackgroundColor3 = themes.preset.element
-            -- push toggle label right so pill sits beside it
-            if self.items and self.items["name"] then
-                local pad = self.items["name"]:FindFirstChildOfClass("UIPadding")
-                if pad then
-                    pad.PaddingLeft = dim(0, 56)
-                else
-                    library:create("UIPadding", {
-                        Parent = self.items["name"],
-                        PaddingLeft = dim(0, 56),
-                        PaddingRight = dim(0, 5),
-                    })
-                end
+            items["keybind_holder"].AnchorPoint = vec2(0, 0)
+            items["keybind_holder"].Position = dim2(0, 0, 0, 0)
+            if items["key"] then
+                items["key"].TextSize = 11
             end
+            if self.items["toggle_button"] then
+                self.items["toggle_button"].LayoutOrder = 2
+            end
+        end)
+    elseif inlineOnToggle and keybindParent then
+        pcall(function()
+            items["keybind_element"].Visible = false
+            items["keybind_holder"].Parent = keybindParent
+            items["keybind_holder"].AutomaticSize = Enum.AutomaticSize.X
+            items["keybind_holder"].Size = dim2(0, 0, 0, 16)
         end)
     end
 
